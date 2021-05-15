@@ -13,7 +13,7 @@ use std::default::Default;
 use std::fmt;
 
 use crate::audio::{AudioBufferRef, Channels, Layout};
-use crate::errors::{Result, unsupported_error};
+use crate::errors::{unsupported_error, Result};
 use crate::formats::Packet;
 use crate::sample::SampleFormat;
 use crate::units::TimeBase;
@@ -27,118 +27,117 @@ use crate::units::TimeBase;
 pub struct CodecType(u32);
 
 /// Null decoder, simply discards all data.
-pub const CODEC_TYPE_NULL: CodecType             = CodecType(0x0);
+pub const CODEC_TYPE_NULL: CodecType = CodecType(0x0);
 
 // Uncompressed PCM audio codecs
 //------------------------------
 
 /// PCM signed 32-bit little-endian interleaved
-pub const CODEC_TYPE_PCM_S32LE: CodecType        = CodecType(0x100);
+pub const CODEC_TYPE_PCM_S32LE: CodecType = CodecType(0x100);
 /// PCM signed 32-bit little-endian planar
 pub const CODEC_TYPE_PCM_S32LE_PLANAR: CodecType = CodecType(0x101);
 /// PCM signed 32-bit big-endian interleaved
-pub const CODEC_TYPE_PCM_S32BE: CodecType        = CodecType(0x102);
+pub const CODEC_TYPE_PCM_S32BE: CodecType = CodecType(0x102);
 /// PCM signed 32-bit big-endian planar
 pub const CODEC_TYPE_PCM_S32BE_PLANAR: CodecType = CodecType(0x103);
 /// PCM signed 24-bit little-endian interleaved
-pub const CODEC_TYPE_PCM_S24LE: CodecType        = CodecType(0x104);
+pub const CODEC_TYPE_PCM_S24LE: CodecType = CodecType(0x104);
 /// PCM signed 24-bit little-endian planar
 pub const CODEC_TYPE_PCM_S24LE_PLANAR: CodecType = CodecType(0x105);
 /// PCM signed 24-bit big-endian interleaved
-pub const CODEC_TYPE_PCM_S24BE: CodecType        = CodecType(0x106);
+pub const CODEC_TYPE_PCM_S24BE: CodecType = CodecType(0x106);
 /// PCM signed 24-bit big-endian planar
 pub const CODEC_TYPE_PCM_S24BE_PLANAR: CodecType = CodecType(0x107);
 /// PCM signed 16-bit little-endian interleaved
-pub const CODEC_TYPE_PCM_S16LE: CodecType        = CodecType(0x108);
+pub const CODEC_TYPE_PCM_S16LE: CodecType = CodecType(0x108);
 /// PCM signed 16-bit little-endian planar
 pub const CODEC_TYPE_PCM_S16LE_PLANAR: CodecType = CodecType(0x109);
 /// PCM signed 16-bit big-endian interleaved
-pub const CODEC_TYPE_PCM_S16BE: CodecType        = CodecType(0x10a);
+pub const CODEC_TYPE_PCM_S16BE: CodecType = CodecType(0x10a);
 /// PCM signed 16-bit big-endian planar
 pub const CODEC_TYPE_PCM_S16BE_PLANAR: CodecType = CodecType(0x10b);
 /// PCM signed 8-bit interleaved
-pub const CODEC_TYPE_PCM_S8: CodecType           = CodecType(0x10c);
+pub const CODEC_TYPE_PCM_S8: CodecType = CodecType(0x10c);
 /// PCM signed 8-bit planar
-pub const CODEC_TYPE_PCM_S8_PLANAR: CodecType    = CodecType(0x10d);
+pub const CODEC_TYPE_PCM_S8_PLANAR: CodecType = CodecType(0x10d);
 /// PCM unsigned 32-bit little-endian interleaved
-pub const CODEC_TYPE_PCM_U32LE: CodecType        = CodecType(0x10e);
+pub const CODEC_TYPE_PCM_U32LE: CodecType = CodecType(0x10e);
 /// PCM unsigned 32-bit little-endian planar
 pub const CODEC_TYPE_PCM_U32LE_PLANAR: CodecType = CodecType(0x10f);
 /// PCM unsigned 32-bit big-endian interleaved
-pub const CODEC_TYPE_PCM_U32BE: CodecType        = CodecType(0x110);
+pub const CODEC_TYPE_PCM_U32BE: CodecType = CodecType(0x110);
 /// PCM unsigned 32-bit big-endian planar
 pub const CODEC_TYPE_PCM_U32BE_PLANAR: CodecType = CodecType(0x111);
 /// PCM unsigned 24-bit little-endian interleaved
-pub const CODEC_TYPE_PCM_U24LE: CodecType        = CodecType(0x112);
+pub const CODEC_TYPE_PCM_U24LE: CodecType = CodecType(0x112);
 /// PCM unsigned 24-bit little-endian planar
 pub const CODEC_TYPE_PCM_U24LE_PLANAR: CodecType = CodecType(0x113);
 /// PCM unsigned 24-bit big-endian interleaved
-pub const CODEC_TYPE_PCM_U24BE: CodecType        = CodecType(0x114);
+pub const CODEC_TYPE_PCM_U24BE: CodecType = CodecType(0x114);
 /// PCM unsigned 24-bit big-endian planar
 pub const CODEC_TYPE_PCM_U24BE_PLANAR: CodecType = CodecType(0x115);
 /// PCM unsigned 16-bit little-endian interleaved
-pub const CODEC_TYPE_PCM_U16LE: CodecType        = CodecType(0x116);
+pub const CODEC_TYPE_PCM_U16LE: CodecType = CodecType(0x116);
 /// PCM unsigned 16-bit little-endian planar
 pub const CODEC_TYPE_PCM_U16LE_PLANAR: CodecType = CodecType(0x117);
 /// PCM unsigned 16-bit big-endian interleaved
-pub const CODEC_TYPE_PCM_U16BE: CodecType        = CodecType(0x118);
+pub const CODEC_TYPE_PCM_U16BE: CodecType = CodecType(0x118);
 /// PCM unsigned 16-bit big-endian planar
 pub const CODEC_TYPE_PCM_U16BE_PLANAR: CodecType = CodecType(0x119);
 /// PCM unsigned 8-bit interleaved
-pub const CODEC_TYPE_PCM_U8: CodecType           = CodecType(0x11a);
+pub const CODEC_TYPE_PCM_U8: CodecType = CodecType(0x11a);
 /// PCM unsigned 8-bit planar
-pub const CODEC_TYPE_PCM_U8_PLANAR: CodecType    = CodecType(0x11b);
+pub const CODEC_TYPE_PCM_U8_PLANAR: CodecType = CodecType(0x11b);
 /// PCM 32-bit little-endian floating point interleaved
-pub const CODEC_TYPE_PCM_F32LE: CodecType        = CodecType(0x11c);
+pub const CODEC_TYPE_PCM_F32LE: CodecType = CodecType(0x11c);
 /// PCM 32-bit little-endian floating point planar
 pub const CODEC_TYPE_PCM_F32LE_PLANAR: CodecType = CodecType(0x11d);
 /// PCM 32-bit big-endian floating point interleaved
-pub const CODEC_TYPE_PCM_F32BE: CodecType        = CodecType(0x11e);
+pub const CODEC_TYPE_PCM_F32BE: CodecType = CodecType(0x11e);
 /// PCM 32-bit big-endian floating point planar
 pub const CODEC_TYPE_PCM_F32BE_PLANAR: CodecType = CodecType(0x11f);
 /// PCM 64-bit little-endian floating point interleaved
-pub const CODEC_TYPE_PCM_F64LE: CodecType        = CodecType(0x120);
+pub const CODEC_TYPE_PCM_F64LE: CodecType = CodecType(0x120);
 /// PCM 64-bit little-endian floating point planar
 pub const CODEC_TYPE_PCM_F64LE_PLANAR: CodecType = CodecType(0x121);
 /// PCM 64-bit big-endian floating point interleaved
-pub const CODEC_TYPE_PCM_F64BE: CodecType        = CodecType(0x122);
+pub const CODEC_TYPE_PCM_F64BE: CodecType = CodecType(0x122);
 /// PCM 64-bit big-endian floating point planar
 pub const CODEC_TYPE_PCM_F64BE_PLANAR: CodecType = CodecType(0x123);
 /// PCM A-law
-pub const CODEC_TYPE_PCM_ALAW: CodecType         = CodecType(0x124);
+pub const CODEC_TYPE_PCM_ALAW: CodecType = CodecType(0x124);
 /// PCM Mu-law
-pub const CODEC_TYPE_PCM_MULAW: CodecType        = CodecType(0x125);
+pub const CODEC_TYPE_PCM_MULAW: CodecType = CodecType(0x125);
 
 // Compressed lossy audio codecs
 //------------------------------
 
 /// Vorbis
-pub const CODEC_TYPE_VORBIS: CodecType           = CodecType(0x1000);
+pub const CODEC_TYPE_VORBIS: CodecType = CodecType(0x1000);
 /// MPEG Layer 1 (MP1)
-pub const CODEC_TYPE_MP1: CodecType              = CodecType(0x1001);
+pub const CODEC_TYPE_MP1: CodecType = CodecType(0x1001);
 /// MPEG Layer 2 (MP2)
-pub const CODEC_TYPE_MP2: CodecType              = CodecType(0x1002);
+pub const CODEC_TYPE_MP2: CodecType = CodecType(0x1002);
 /// MPEG Layer 3 (MP3)
-pub const CODEC_TYPE_MP3: CodecType              = CodecType(0x1003);
+pub const CODEC_TYPE_MP3: CodecType = CodecType(0x1003);
 /// Advanced Audio Coding (AAC)
-pub const CODEC_TYPE_AAC: CodecType              = CodecType(0x1004);
+pub const CODEC_TYPE_AAC: CodecType = CodecType(0x1004);
 /// Opus
-pub const CODEC_TYPE_OPUS: CodecType             = CodecType(0x1005);
+pub const CODEC_TYPE_OPUS: CodecType = CodecType(0x1005);
 /// Musepack
-pub const CODEC_TYPE_MUSEPACK: CodecType         = CodecType(0x1006);
+pub const CODEC_TYPE_MUSEPACK: CodecType = CodecType(0x1006);
 
 // Compressed lossless audio codecs
 //---------------------------------
 
 /// Free Lossless Audio Codec (FLAC)
-pub const CODEC_TYPE_FLAC: CodecType             = CodecType(0x2000);
+pub const CODEC_TYPE_FLAC: CodecType = CodecType(0x2000);
 /// WavPack
-pub const CODEC_TYPE_WAVPACK: CodecType          = CodecType(0x2001);
+pub const CODEC_TYPE_WAVPACK: CodecType = CodecType(0x2001);
 /// Monkey's Audio (APE)
-pub const CODEC_TYPE_MONKEYS_AUDIO: CodecType    = CodecType(0x2002);
+pub const CODEC_TYPE_MONKEYS_AUDIO: CodecType = CodecType(0x2002);
 /// Apple Lossless Audio Codec (ALAC)
-pub const CODEC_TYPE_ALAC: CodecType             = CodecType(0x2003);
-
+pub const CODEC_TYPE_ALAC: CodecType = CodecType(0x2003);
 
 impl fmt::Display for CodecType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -298,7 +297,6 @@ impl CodecParameters {
         self.extra_data = Some(data);
         self
     }
-
 }
 
 /// `DecoderOptions` is a common set of options that all decoders use.
@@ -309,16 +307,13 @@ pub struct DecoderOptions {
 
 impl Default for DecoderOptions {
     fn default() -> Self {
-        DecoderOptions {
-            verify: false,
-        }
+        DecoderOptions { verify: false }
     }
 }
 
 /// A `Decoder` implements a codec's decode algorithm. It consumes `Packet`s and produces
 /// `AudioBuffer`s.
 pub trait Decoder {
-
     /// Attempts to instantiates a `Decoder` using the provided `CodecParameters`.
     fn try_new(params: &CodecParameters, options: &DecoderOptions) -> Result<Self>
     where
@@ -393,13 +388,14 @@ impl CodecRegistry {
     /// instantiated with the provided `CodecParameters` and returned. If a `Decoder` could not be
     /// found, or the `CodecParameters` are either insufficient or invalid for the `Decoder`, an
     /// error will be returned.
-    pub fn make(&self, params: &CodecParameters, options: &DecoderOptions)
-        -> Result<Box<dyn Decoder>> {
-
+    pub fn make(
+        &self,
+        params: &CodecParameters,
+        options: &DecoderOptions,
+    ) -> Result<Box<dyn Decoder>> {
         if let Some(descriptor) = self.codecs.get(&params.codec) {
             Ok((descriptor.inst_func)(params, options)?)
-        }
-        else {
+        } else {
             unsupported_error("unsupported codec")
         }
     }
@@ -413,9 +409,7 @@ macro_rules! support_codec {
             codec: $type,
             short_name: $short_name,
             long_name: $long_name,
-            inst_func: |params, opt| {
-                Ok(Box::new(Self::try_new(&params, &opt)?))
-            }
+            inst_func: |params, opt| Ok(Box::new(Self::try_new(&params, &opt)?)),
         }
     };
 }

@@ -6,7 +6,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use symphonia_core::audio::{Channels, Layout, SignalSpec};
-use symphonia_core::errors::{Result, decode_error};
+use symphonia_core::errors::{decode_error, Result};
 use symphonia_core::io::ByteStream;
 
 use log::info;
@@ -21,47 +21,47 @@ pub const SFB_LONG_BANDS: [[usize; 23]; 9] = [
     // 44.1 kHz, MPEG version 1, derived from ISO/IEC 11172-3 Table B.8
     [
         0, 4, 8, 12, 16, 20, 24, 30, 36, 44, 52, 62, 74, 90, 110, 134, 162, 196, 238, 288, 342,
-        418, 576
+        418, 576,
     ],
     // 48 kHz
     [
         0, 4, 8, 12, 16, 20, 24, 30, 36, 42, 50, 60, 72, 88, 106, 128, 156, 190, 230, 276, 330,
-        384, 576
+        384, 576,
     ],
     // 32 kHz
     [
         0, 4, 8, 12, 16, 20, 24, 30, 36, 44, 54, 66, 82, 102, 126, 156, 194, 240, 296, 364, 448,
-        550, 576
+        550, 576,
     ],
     // 22.050 kHz, MPEG version 2, derived from ISO/IEC 13818-3 Table B.2
     [
         0, 6, 12, 18, 24, 30, 36, 44, 54, 66, 80, 96, 116, 140, 168, 200, 238, 284, 336, 396, 464,
-        522, 576
+        522, 576,
     ],
     // 24 kHz (330 should be 332?)
     [
         0, 6, 12, 18, 24, 30, 36, 44, 54, 66, 80, 96, 114, 136, 162, 194, 232, 278, 332, 394, 464,
-        540, 576
+        540, 576,
     ],
     // 16 kHz
     [
         0, 6, 12, 18, 24, 30, 36, 44, 54, 66, 80, 96, 116, 140, 168, 200, 238, 284, 336, 396, 464,
-        522, 576
+        522, 576,
     ],
     // 11.025 kHz, MPEG version 2.5
     [
         0, 6, 12, 18, 24, 30, 36, 44, 54, 66, 80, 96, 116, 140, 168, 200, 238, 284, 336, 396, 464,
-        522, 576
+        522, 576,
     ],
     // 12 kHz
     [
         0, 6, 12, 18, 24, 30, 36, 44, 54, 66, 80, 96, 116, 140, 168, 200, 238, 284, 336, 396, 464,
-        522, 576
+        522, 576,
     ],
     // 8 kHz
     [
         0, 12, 24, 36, 48, 60, 72, 88, 108, 132, 160, 192, 232, 280, 336, 400, 476, 566, 568, 570,
-        572, 574, 576
+        572, 574, 576,
     ],
 ];
 
@@ -72,99 +72,91 @@ pub const SFB_SHORT_BANDS: [[usize; 40]; 9] = [
     // 44.1 kHz, MPEG version 1, derived from ISO/IEC 11172-3 Table B.8
     [
         0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 74, 82, 90, 100, 110, 120,
-        132, 144, 156, 170, 184, 198, 216, 234, 252, 274, 296, 318, 348, 378, 408, 464, 520, 576
+        132, 144, 156, 170, 184, 198, 216, 234, 252, 274, 296, 318, 348, 378, 408, 464, 520, 576,
     ],
     // 48 kHz
     [
-        0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 78, 84, 94, 104, 114,
-        126, 138, 150, 164, 178, 192, 208, 224, 240, 260, 280, 300, 326, 352, 378, 444, 510, 576
+        0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 78, 84, 94, 104, 114, 126,
+        138, 150, 164, 178, 192, 208, 224, 240, 260, 280, 300, 326, 352, 378, 444, 510, 576,
     ],
     // 32 kHz
     [
         0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 74, 82, 90, 102, 114, 126,
-        142, 158, 174, 194, 214, 234, 260, 286, 312, 346, 380, 414, 456, 498, 540, 552, 564, 576
+        142, 158, 174, 194, 214, 234, 260, 286, 312, 346, 380, 414, 456, 498, 540, 552, 564, 576,
     ],
     // 22.050 kHz, MPEG version 2, derived from ISO/IEC 13818-3 Table B.2
     [
         0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 42, 48, 54, 60, 66, 72, 80, 88, 96, 106, 116, 126,
-        140, 154, 168, 186, 204, 222, 248, 274, 300, 332, 364, 396, 438, 480, 522, 540, 558, 576
+        140, 154, 168, 186, 204, 222, 248, 274, 300, 332, 364, 396, 438, 480, 522, 540, 558, 576,
     ],
     // 24 kHz (330 should be 332?)
     [
         0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144,
-        158, 172, 186, 204, 222, 240, 264, 288, 312, 344, 376, 408, 452, 496, 540, 552, 564, 576
+        158, 172, 186, 204, 222, 240, 264, 288, 312, 344, 376, 408, 452, 496, 540, 552, 564, 576,
     ],
     // 16 kHz
     [
         0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144,
-        158, 172, 186, 204, 222, 240, 264, 288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576
+        158, 172, 186, 204, 222, 240, 264, 288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576,
     ],
     // 11.025 kHz, MPEG version 2.5
     [
         0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144,
-        158, 172, 186, 204, 222, 240, 264, 288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576
+        158, 172, 186, 204, 222, 240, 264, 288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576,
     ],
     // 12 kHz
     [
         0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144,
-        158, 172, 186, 204, 222, 240, 264, 288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576
+        158, 172, 186, 204, 222, 240, 264, 288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576,
     ],
     // 8 kHz
     [
         0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 84, 96, 108, 124, 140, 156, 176, 196, 216, 240, 264,
         288, 316, 344, 372, 408, 444, 480, 482, 484, 486, 488, 490, 492, 494, 496, 498, 524, 550,
-        576
+        576,
     ],
 ];
 
 pub const SFB_MIXED_BANDS: [&'static [usize]; 9] = [
     // 44.1 kHz, MPEG version 1, derived from ISO/IEC 11172-3 Table B.8
     &[
-        0, 4, 8, 12, 16, 20, 24, 30,
-        36, 40, 44, 48, 54, 60, 66, 74, 82, 90, 100, 110, 120, 132, 144, 156, 170, 184, 198, 216,
-        234, 252, 274, 296, 318, 348, 378, 408, 464, 520, 576
+        0, 4, 8, 12, 16, 20, 24, 30, 36, 40, 44, 48, 54, 60, 66, 74, 82, 90, 100, 110, 120, 132,
+        144, 156, 170, 184, 198, 216, 234, 252, 274, 296, 318, 348, 378, 408, 464, 520, 576,
     ],
     // 48 kHz
     &[
-        0, 4, 8, 12, 16, 20, 24, 30,
-        36, 40, 44, 48, 54, 60, 66, 72, 78, 84, 94, 104, 114, 126, 138, 150, 164, 178, 192, 208,
-        224, 240, 260, 280, 300, 326, 352, 378, 444, 510, 576
+        0, 4, 8, 12, 16, 20, 24, 30, 36, 40, 44, 48, 54, 60, 66, 72, 78, 84, 94, 104, 114, 126,
+        138, 150, 164, 178, 192, 208, 224, 240, 260, 280, 300, 326, 352, 378, 444, 510, 576,
     ],
     // 32 kHz
     &[
-        0, 4, 8, 12, 16, 20, 24, 30,
-        36, 40, 44, 48, 54, 60, 66, 74, 82, 90, 102, 114, 126, 142, 158, 174, 194, 214, 234, 260,
-        286, 312, 346, 380, 414, 456, 498, 540, 552, 564, 576
+        0, 4, 8, 12, 16, 20, 24, 30, 36, 40, 44, 48, 54, 60, 66, 74, 82, 90, 102, 114, 126, 142,
+        158, 174, 194, 214, 234, 260, 286, 312, 346, 380, 414, 456, 498, 540, 552, 564, 576,
     ],
     // 22.050 kHz, MPEG version 2, derived from ISO/IEC 13818-3 Table B.2
     &[
-        0, 6, 12, 18, 24, 30,
-        36, 42, 48, 54, 60, 66, 72, 80, 88, 96, 106, 116, 126, 140, 154, 168, 186, 204, 222, 248,
-        274, 300, 332, 364, 396, 438, 480, 522, 540, 558, 576
+        0, 6, 12, 18, 24, 30, 36, 42, 48, 54, 60, 66, 72, 80, 88, 96, 106, 116, 126, 140, 154, 168,
+        186, 204, 222, 248, 274, 300, 332, 364, 396, 438, 480, 522, 540, 558, 576,
     ],
     // 24 kHz (330 should be 332?)
     &[
-        0, 6, 12, 18, 24, 30,
-        36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144, 158, 172, 186, 204, 222, 240, 264,
-        288, 312, 344, 376, 408, 452, 496, 540, 552, 564, 576
+        0, 6, 12, 18, 24, 30, 36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144, 158, 172,
+        186, 204, 222, 240, 264, 288, 312, 344, 376, 408, 452, 496, 540, 552, 564, 576,
     ],
     // 16 kHz
     &[
-        0, 6, 12, 18, 24, 30,
-        36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144, 158, 172, 186, 204, 222, 240, 264,
-        288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576
+        0, 6, 12, 18, 24, 30, 36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144, 158, 172,
+        186, 204, 222, 240, 264, 288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576,
     ],
     // 11.025 kHz, MPEG version 2.5
     &[
-        0, 6, 12, 18, 24, 30,
-        36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144, 158, 172, 186, 204, 222, 240, 264,
-        288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576
+        0, 6, 12, 18, 24, 30, 36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144, 158, 172,
+        186, 204, 222, 240, 264, 288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576,
     ],
     // 12 kHz
     &[
-        0, 6, 12, 18, 24, 30,
-        36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144, 158, 172, 186, 204, 222, 240, 264,
-        288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576
+        0, 6, 12, 18, 24, 30, 36, 42, 48, 54, 62, 70, 78, 88, 98, 108, 120, 132, 144, 158, 172,
+        186, 204, 222, 240, 264, 288, 312, 342, 372, 402, 442, 482, 522, 540, 558, 576,
     ],
     // 8 kHz
     //
@@ -172,16 +164,16 @@ pub const SFB_MIXED_BANDS: [&'static [usize]; 9] = [
     // There does not appear to be a consensus among other MP3 implementations either, so this is
     // at best an educated guess.
     &[
-        0, 12, 24,
-        36, 40, 44, 48, 56, 64, 72, 84, 96, 108, 124, 140, 156, 176, 196, 216, 240, 264, 288, 316,
-        344, 372, 408, 444, 480, 482, 484, 486, 488, 490, 492, 494, 496, 498, 524, 550, 576
+        0, 12, 24, 36, 40, 44, 48, 56, 64, 72, 84, 96, 108, 124, 140, 156, 176, 196, 216, 240, 264,
+        288, 316, 344, 372, 408, 444, 480, 482, 484, 486, 488, 490, 492, 494, 496, 498, 524, 550,
+        576,
     ],
 ];
 
-pub const SFB_MIXED_SWITCH_POINT: [usize; 9] = [ 8, 8, 8, 6, 6, 6, 6, 6, 3 ];
+pub const SFB_MIXED_SWITCH_POINT: [usize; 9] = [8, 8, 8, 6, 6, 6, 6, 6, 3];
 
 /// The MPEG audio version.
-#[derive(Copy,Clone,Debug,PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MpegVersion {
     /// Version 2.5
     Mpeg2p5,
@@ -192,7 +184,7 @@ pub enum MpegVersion {
 }
 
 /// The MPEG audio layer.
-#[derive(Copy,Clone,Debug,PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MpegLayer {
     /// Layer 1
     Layer1,
@@ -204,7 +196,7 @@ pub enum MpegLayer {
 
 /// For Joint Stereo channel mode, the mode extension describes the features and parameters of the
 /// stereo encoding.
-#[derive(Copy,Clone,Debug,PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Mode {
     /// Joint Stereo in layer 3 may use both Mid-Side and Intensity encoding.
     Layer3 { mid_side: bool, intensity: bool },
@@ -214,7 +206,7 @@ pub enum Mode {
 }
 
 /// The channel mode.
-#[derive(Copy,Clone,Debug,PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ChannelMode {
     /// Single mono audio channel.
     Mono,
@@ -232,7 +224,7 @@ impl ChannelMode {
     pub fn count(&self) -> usize {
         match self {
             ChannelMode::Mono => 1,
-            _                 => 2,
+            _ => 2,
         }
     }
 
@@ -241,13 +233,13 @@ impl ChannelMode {
     pub fn channels(&self) -> Channels {
         match self {
             ChannelMode::Mono => Channels::FRONT_LEFT,
-            _                 => Channels::FRONT_LEFT | Channels::FRONT_RIGHT,
+            _ => Channels::FRONT_LEFT | Channels::FRONT_RIGHT,
         }
     }
 }
 
 /// The emphasis applied during encoding.
-#[derive(Copy,Clone,Debug,PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Emphasis {
     /// No emphasis
     None,
@@ -303,7 +295,7 @@ impl FrameHeader {
     pub fn n_granules(&self) -> usize {
         match self.version {
             MpegVersion::Mpeg1 => 2,
-            _                  => 1,
+            _ => 1,
         }
     }
 
@@ -324,14 +316,14 @@ impl FrameHeader {
     }
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum BlockType {
     // Default case when window switching is off. Also the normal case when window switching is
     // on. Granule contains one long block.
     Long,
     Start,
     Short { is_mixed: bool },
-    End
+    End,
 }
 
 /// `BitResevoir` implements the bit resevoir mechanism for main_data. Since frames have a
@@ -355,9 +347,8 @@ impl BitResevoir {
         &mut self,
         reader: &mut B,
         main_data_begin: usize,
-        main_data_size: usize
+        main_data_size: usize,
     ) -> Result<()> {
-
         // The value `main_data_begin` indicates the number of bytes from the previous frames to
         // reuse. It must always be less than or equal to maximum amount of bytes the resevoir can
         // hold taking into account the additional data being added to the resevoir.
@@ -370,9 +361,9 @@ impl BitResevoir {
         // If the offset is less than or equal to the amount of data in the resevoir, shift the
         // re-used bytes to the beginning of the resevoir.
         if main_data_begin <= self.len {
-            self.buf.copy_within(self.len - main_data_begin..self.len, 0);
-        }
-        else {
+            self.buf
+                .copy_within(self.len - main_data_begin..self.len, 0);
+        } else {
             // If the offset is greater than the amount of data in the resevoir, then the stream is
             // malformed. However, there are many many ways this could happen. Shift all the data in
             // the resevoir over by the amount of extra bytes expected and then zero the extra bytes.
@@ -381,7 +372,9 @@ impl BitResevoir {
             let extra = main_data_begin - self.len;
 
             self.buf.copy_within(0..self.len, extra);
-            for byte in &mut self.buf[0..extra] { *byte = 0 }
+            for byte in &mut self.buf[0..extra] {
+                *byte = 0
+            }
         }
 
         // Read the remaining amount of bytes from the stream into the resevoir.

@@ -5,10 +5,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use super::{Mapper, MapResult};
+use super::{MapResult, Mapper};
 
 use symphonia_core::codecs::{CodecParameters, CODEC_TYPE_VORBIS};
-use symphonia_core::errors::{Result, decode_error};
+use symphonia_core::errors::{decode_error, Result};
 use symphonia_core::io::{BufStream, ByteStream};
 use symphonia_core::meta::MetadataBuilder;
 use symphonia_metadata::vorbis;
@@ -112,9 +112,7 @@ pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper>>> {
         .with_extra_data(Box::from(buf));
 
     // Instantiate the Vorbis mapper.
-    let mapper = Box::new(VorbisMapper {
-        codec_params,
-    });
+    let mapper = Box::new(VorbisMapper { codec_params });
 
     Ok(Some(mapper))
 }
@@ -124,7 +122,6 @@ struct VorbisMapper {
 }
 
 impl Mapper for VorbisMapper {
-
     fn codec(&self) -> &CodecParameters {
         &self.codec_params
     }
@@ -138,8 +135,7 @@ impl Mapper for VorbisMapper {
         // An even numbered packet type is an audio packet.
         if packet_type % 2 == 0 {
             Ok(MapResult::Bitstream)
-        }
-        else {
+        } else {
             // Odd numbered packet types are header packets.
             let mut packet_sig_buf = [0; 6];
             reader.read_buf_exact(&mut packet_sig_buf)?;
@@ -170,5 +166,4 @@ impl Mapper for VorbisMapper {
             }
         }
     }
-
 }

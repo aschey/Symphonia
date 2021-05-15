@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use symphonia_core::errors::{Result, decode_error, unsupported_error};
+use symphonia_core::errors::{decode_error, unsupported_error, Result};
 use symphonia_core::io::{ByteStream, FiniteStream, ScopedStream};
 
 use crate::atoms::{Atom, AtomHeader};
@@ -76,11 +76,10 @@ impl Atom for EsdsAtom {
             header,
             descriptor: descriptor.unwrap(),
         })
-
     }
 }
 
-pub trait ObjectDescriptor : Sized {
+pub trait ObjectDescriptor: Sized {
     fn read<B: ByteStream>(reader: &mut B, len: u32) -> Result<Self>;
 }
 
@@ -121,7 +120,6 @@ pub struct ESDescriptor {
 
 impl ObjectDescriptor for ESDescriptor {
     fn read<B: ByteStream>(reader: &mut B, len: u32) -> Result<Self> {
-
         let es_id = reader.read_be_u16()?;
         let flags = reader.read_u8()?;
 
@@ -206,11 +204,7 @@ impl ObjectDescriptor for DecoderConfigDescriptor {
         let (stream_type, upstream, reserved) = {
             let val = reader.read_u8()?;
 
-            (
-                (val & 0xfc) >> 2,
-                (val & 0x02) >> 1,
-                (val & 0x01) >> 0,
-            )
+            ((val & 0xfc) >> 2, (val & 0x02) >> 1, (val & 0x01) >> 0)
         };
 
         if reserved != 1 {
@@ -252,7 +246,6 @@ impl ObjectDescriptor for DecoderConfigDescriptor {
             avg_bitrate,
             dec_specific_config: dec_specific_config.unwrap(),
         })
-
     }
 }
 
@@ -310,7 +303,6 @@ timeStampLength == 0,  for predefined == 0x2
 pub struct SLDescriptor;
 
 impl ObjectDescriptor for SLDescriptor {
-    
     fn read<B: ByteStream>(reader: &mut B, _len: u32) -> Result<Self> {
         // const SLCONFIG_PREDEFINED_CUSTOM: u8 = 0x0;
         // const SLCONFIG_PREDEFINED_NULL: u8 = 0x1;

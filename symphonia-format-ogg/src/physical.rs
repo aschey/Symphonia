@@ -8,13 +8,13 @@
 use std::collections::BTreeMap;
 
 use symphonia_core::checksum::Crc32;
-use symphonia_core::errors::{Result, decode_error};
-use symphonia_core::io::{ByteStream, BufStream, Monitor, MonitorStream};
+use symphonia_core::errors::{decode_error, Result};
+use symphonia_core::io::{BufStream, ByteStream, Monitor, MonitorStream};
 
 use log::{debug, warn};
 
-use super::page::{PageHeader, read_page_header};
 use super::logical::LogicalStream;
+use super::page::{read_page_header, PageHeader};
 
 pub struct OggPacket {
     pub serial: u32,
@@ -28,7 +28,6 @@ pub struct PhysicalStream {
 }
 
 impl PhysicalStream {
-
     pub fn current_page(&self) -> &PageHeader {
         &self.page
     }
@@ -71,12 +70,14 @@ impl PhysicalStream {
         if !self.stream_map.contains_key(&self.page.serial) {
             // TODO: Limit maximum number of streams.
             // TODO: Streams can only be created in groups.
-            debug!("create packet buffer for stream with serial {:#x}", self.page.serial);
+            debug!(
+                "create packet buffer for stream with serial {:#x}",
+                self.page.serial
+            );
             self.stream_map.insert(self.page.serial, Default::default());
         }
 
         if let Some(logical_stream) = self.stream_map.get_mut(&self.page.serial) {
-
             logical_stream.read(&mut reader_crc32, &self.page)?;
 
             // Get the calculated CRC for the page.
@@ -85,8 +86,7 @@ impl PhysicalStream {
             if self.page.crc != calculated_crc {
                 warn!(
                     "crc mismatch: expected {:#x}, got {:#x}",
-                    self.page.crc,
-                    calculated_crc
+                    self.page.crc, calculated_crc
                 );
 
                 // If the page was corrupt then reset the logical stream since its packet buffer
@@ -109,7 +109,7 @@ impl PhysicalStream {
 
             if let Some(logical_stream) = self.stream_map.get_mut(&serial) {
                 if let Some(data) = logical_stream.next_packet() {
-                    return Ok(OggPacket{ serial, data });
+                    return Ok(OggPacket { serial, data });
                 }
             }
 
@@ -125,5 +125,4 @@ impl PhysicalStream {
             logical_stream.consume_packet();
         }
     }
-
 }

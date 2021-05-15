@@ -14,13 +14,13 @@
 use std::f32::consts;
 use std::fmt;
 
-use symphonia_core::errors::{decode_error, unsupported_error, Result};
-use symphonia_core::io::{huffman::*, BitStream, FiniteBitStream, BitStreamLtr, BufStream};
-use symphonia_core::audio::{AudioBuffer, AudioBufferRef, AsAudioBufferRef, Signal, SignalSpec};
+use symphonia_core::audio::{AsAudioBufferRef, AudioBuffer, AudioBufferRef, Signal, SignalSpec};
 use symphonia_core::codecs::CODEC_TYPE_AAC;
-use symphonia_core::codecs::{CodecParameters, CodecDescriptor, Decoder, DecoderOptions};
+use symphonia_core::codecs::{CodecDescriptor, CodecParameters, Decoder, DecoderOptions};
 use symphonia_core::dsp::mdct::Imdct;
+use symphonia_core::errors::{decode_error, unsupported_error, Result};
 use symphonia_core::formats::Packet;
+use symphonia_core::io::{huffman::*, BitStream, BitStreamLtr, BufStream, FiniteBitStream};
 use symphonia_core::support_codec;
 use symphonia_core::units::Duration;
 
@@ -64,7 +64,6 @@ lazy_static! {
         pow43
     };
 }
-
 
 impl fmt::Display for M4AType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -123,8 +122,7 @@ impl M4AInfo {
         let chidx = bs.read_bits_leq32(4)? as usize;
         if chidx < AAC_CHANNELS.len() {
             Ok(AAC_CHANNELS[chidx])
-        }
-        else {
+        } else {
             Ok(chidx)
         }
     }
@@ -145,8 +143,7 @@ impl M4AInfo {
 
             let ext_chans = if self.otype == M4AType::ER_BSAC {
                 Self::read_channel_config(&mut bs)?
-            }
-            else {
+            } else {
                 0
             };
 
@@ -409,8 +406,7 @@ impl ICSInfo {
                     self.window_groups += 1;
                 }
             }
-        }
-        else {
+        } else {
             self.long_win = true;
             self.num_windows = 1;
             self.max_sfb = bs.read_bits_leq32(6)? as usize;
@@ -422,16 +418,13 @@ impl ICSInfo {
     fn get_group_start(&self, g: usize) -> usize {
         if g == 0 {
             0
-        }
-        else if g >= self.window_groups {
+        } else if g >= self.window_groups {
             if self.long_win {
                 1
-            }
-            else {
+            } else {
                 8
             }
-        }
-        else {
+        } else {
             self.group_start[g]
         }
     }
@@ -565,8 +558,7 @@ impl TNSCoeffs {
                 // Convert to signed integer.
                 let c = f32::from(if (val & sign_mask) != 0 {
                     (val | neg_mask) as i8
-                }
-                else {
+                } else {
                     val as i8
                 });
 
@@ -588,7 +580,6 @@ impl TNSCoeffs {
 
         Ok(())
     }
-
 }
 
 #[derive(Clone, Copy)]
@@ -712,10 +703,7 @@ impl ICS {
         }
     }
 
-    fn decode_section_data<B: BitStream>(
-        &mut self,
-        bs: &mut B
-    ) -> Result<()> {
+    fn decode_section_data<B: BitStream>(&mut self, bs: &mut B) -> Result<()> {
         let sect_bits = if self.info.long_win { 5 } else { 3 };
         let sect_esc_val = (1 << sect_bits) - 1;
 
@@ -784,11 +772,9 @@ impl ICS {
 
         for g in 0..self.info.window_groups {
             for sfb in 0..self.info.max_sfb {
-
                 self.scales[g][sfb] = if self.is_zero(g, sfb) {
                     0.0
-                }
-                else if self.is_intensity(g, sfb) {
+                } else if self.is_intensity(g, sfb) {
                     // TODO: Fix lim_bits.
                     scf_intensity += i16::from(bs.read_huffman(&SCF_TABLE, 100)?.0) - 60;
 
@@ -798,13 +784,11 @@ impl ICS {
                     );
 
                     get_intensity_scale(scf_intensity)
-                }
-                else if self.is_noise(g, sfb) {
+                } else if self.is_noise(g, sfb) {
                     if noise_pcm_flag {
                         noise_pcm_flag = false;
                         scf_noise += (bs.read_bits_leq32(9)? as i16) - 256;
-                    }
-                    else {
+                    } else {
                         // TODO: Fix lim_bits.
                         scf_noise += i16::from(bs.read_huffman(&SCF_TABLE, 100)?.0) - 60;
                     }
@@ -814,15 +798,13 @@ impl ICS {
                     );
 
                     get_scale(scf_noise)
-                }
-                else {
+                } else {
                     // TODO: Fix lim_bits.
                     scf_normal += i16::from(bs.read_huffman(&SCF_TABLE, 100)?.0) - 60;
                     validate!((scf_normal >= 0) && (scf_normal < 255));
 
                     get_scale(scf_normal - 100)
                 }
-
             }
         }
         Ok(())
@@ -831,8 +813,7 @@ impl ICS {
     fn get_band_start(&self, swb: usize) -> usize {
         if self.info.long_win {
             self.sbinfo.long_bands[swb]
-        }
-        else {
+        } else {
             self.sbinfo.short_bands[swb]
         }
     }
@@ -840,8 +821,7 @@ impl ICS {
     fn get_num_bands(&self) -> usize {
         if self.info.long_win {
             self.sbinfo.long_bands.len() - 1
-        }
-        else {
+        } else {
             self.sbinfo.short_bands.len() - 1
         }
     }
@@ -872,8 +852,7 @@ impl ICS {
 
                             if cb_idx < FIRST_PAIR_HCB {
                                 decode_quads(bs, cb, unsigned, scale, dst)?;
-                            }
-                            else {
+                            } else {
                                 decode_pairs(
                                     bs,
                                     cb,
@@ -922,8 +901,7 @@ impl ICS {
 
                 if base > 0.0 {
                     base += f32::from(pdata.pulse_amp[pno]);
-                }
-                else {
+                } else {
                     base -= f32::from(pdata.pulse_amp[pno]);
                 }
                 self.coeffs[k] = iquant(base) * scale;
@@ -935,7 +913,7 @@ impl ICS {
         &mut self,
         bs: &mut B,
         m4atype: M4AType,
-        common_window: bool
+        common_window: bool,
     ) -> Result<()> {
         self.global_gain = bs.read_bits_leq32(8)? as u8;
 
@@ -953,11 +931,9 @@ impl ICS {
         // Table 4.156
         let tns_max_order = if !self.info.long_win {
             7
-        }
-        else if m4atype == M4AType::LC {
+        } else if m4atype == M4AType::LC {
             12
-        }
-        else {
+        } else {
             TNS_MAX_ORDER
         };
 
@@ -980,11 +956,9 @@ impl ICS {
         self.place_pulses();
 
         if let Some(ref tns_data) = self.tns_data {
-
             let tns_max_bands = (if self.info.long_win {
                 TNS_MAX_LONG_BANDS[srate_idx]
-            }
-            else {
+            } else {
                 TNS_MAX_SHORT_BANDS[srate_idx]
             })
             .min(self.info.max_sfb);
@@ -997,8 +971,7 @@ impl ICS {
 
                     bottom = if top > tns_data.coeffs[w][f].length {
                         top - tns_data.coeffs[w][f].length
-                    }
-                    else {
+                    } else {
                         0
                     };
 
@@ -1018,8 +991,7 @@ impl ICS {
                                 self.coeffs[i] -= self.coeffs[i - j - 1] * lpc[j];
                             }
                         }
-                    }
-                    else {
+                    } else {
                         for (m, i) in (start..end).rev().enumerate() {
                             for j in 0..order.min(m) {
                                 self.coeffs[i] -= self.coeffs[i + j + 1] * lpc[j];
@@ -1054,7 +1026,9 @@ impl Lcg {
     #[inline(always)]
     fn next(&mut self) -> i32 {
         // Numerical Recipes LCG parameters.
-        self.state = (self.state as u32).wrapping_mul(1664525).wrapping_add(1013904223);
+        self.state = (self.state as u32)
+            .wrapping_mul(1664525)
+            .wrapping_add(1013904223);
         self.state as i32
     }
 }
@@ -1062,8 +1036,7 @@ impl Lcg {
 fn iquant(val: f32) -> f32 {
     if val < 0.0 {
         -((-val).powf(4.0 / 3.0))
-    }
-    else {
+    } else {
         val.powf(4.0 / 3.0)
     }
 }
@@ -1075,8 +1048,7 @@ fn requant(val: f32, scale: f32) -> f32 {
     let bval = val / scale;
     if bval >= 0.0 {
         val.powf(3.0 / 4.0)
-    }
-    else {
+    } else {
         -((-val).powf(3.0 / 4.0))
     }
 }
@@ -1105,7 +1077,6 @@ fn decode_quads<B: BitStream>(
     scale: f32,
     dst: &mut [f32],
 ) -> Result<()> {
-
     let pow43_table: &[f32; 8192] = &POW43_TABLE;
 
     for out in dst.chunks_mut(4) {
@@ -1118,21 +1089,18 @@ fn decode_quads<B: BitStream>(
                 if val != 0 {
                     if bs.read_bit()? {
                         out[i] = -pow43_table[val as usize] * scale;
-                    }
-                    else {
+                    } else {
                         out[i] = pow43_table[val as usize] * scale;
                     }
                 }
             }
-        }
-        else {
+        } else {
             for i in 0..4 {
                 let val = AAC_QUADS[cw][i] - 1;
 
                 if val < 0 {
                     out[i] = -pow43_table[-val as usize] * scale;
-                }
-                else {
+                } else {
                     out[i] = pow43_table[val as usize] * scale;
                 }
             }
@@ -1150,7 +1118,6 @@ fn decode_pairs<B: BitStream>(
     scale: f32,
     dst: &mut [f32],
 ) -> Result<()> {
-
     let pow43_table: &[f32; 8192] = &POW43_TABLE;
 
     for out in dst.chunks_mut(2) {
@@ -1167,8 +1134,7 @@ fn decode_pairs<B: BitStream>(
             if y != 0 && bs.read_bit()? {
                 y = -y;
             }
-        }
-        else {
+        } else {
             x -= (modulo >> 1) as i16;
             y -= (modulo >> 1) as i16;
         }
@@ -1182,8 +1148,16 @@ fn decode_pairs<B: BitStream>(
             }
         }
 
-        out[0] = if x < 0 { -pow43_table[-x as usize] } else { pow43_table[x as usize] } * scale;
-        out[1] = if y < 0 { -pow43_table[-y as usize] } else { pow43_table[y as usize] } * scale;
+        out[0] = if x < 0 {
+            -pow43_table[-x as usize]
+        } else {
+            pow43_table[x as usize]
+        } * scale;
+        out[1] = if y < 0 {
+            -pow43_table[-y as usize]
+        } else {
+            pow43_table[y as usize]
+        } * scale;
     }
     Ok(())
 }
@@ -1202,8 +1176,7 @@ fn read_escape<B: BitStream>(bs: &mut B, is_pos: bool) -> Result<i16> {
 
     if is_pos {
         Ok(word)
-    }
-    else {
+    } else {
         Ok(-word)
     }
 }
@@ -1264,7 +1237,7 @@ impl ChannelPair {
                     }
                 }
                 3 => return decode_error("invalid mid-side mask"),
-                _ => unreachable!()
+                _ => unreachable!(),
             }
 
             self.ics1.info = self.ics0.info;
@@ -1277,7 +1250,6 @@ impl ChannelPair {
         if common_window && self.ms_mask_present != 0 {
             let mut g = 0;
             for w in 0..self.ics0.info.num_windows {
-
                 if w > 0 && !self.ics0.info.scale_factor_grouping[w - 1] {
                     g += 1;
                 }
@@ -1294,7 +1266,7 @@ impl ChannelPair {
 
                         let scale = match dir {
                             true => -self.ics1.scales[g][sfb],
-                            _    =>  self.ics1.scales[g][sfb],
+                            _ => self.ics1.scales[g][sfb],
                         };
 
                         let left = &self.ics0.coeffs[start..end];
@@ -1303,8 +1275,7 @@ impl ChannelPair {
                         for (l, r) in left.iter().zip(right) {
                             *r = scale * l;
                         }
-                    }
-                    else if self.ics0.is_noise(g, sfb) || self.ics1.is_noise(g, sfb) {
+                    } else if self.ics0.is_noise(g, sfb) || self.ics1.is_noise(g, sfb) {
                         // Perceptual noise substitution
                         //
                         // If ms_used is true for the group and band, or ms_mask_present == 2, then
@@ -1313,8 +1284,7 @@ impl ChannelPair {
                             self.ics1.coeffs[start..end]
                                 .copy_from_slice(&self.ics0.coeffs[start..end]);
                         }
-                    }
-                    else if self.ms_mask_present == 2 || self.ms_used[g][sfb] {
+                    } else if self.ms_mask_present == 2 || self.ms_used[g][sfb] {
                         // Mid-side stereo
                         let mid = &mut self.ics0.coeffs[start..end];
                         let side = &mut self.ics1.coeffs[start..end];
@@ -1333,10 +1303,12 @@ impl ChannelPair {
     }
 
     fn synth_audio(&mut self, dsp: &mut DSP, abuf: &mut AudioBuffer<f32>, srate_idx: usize) {
-        self.ics0.synth_channel(dsp, srate_idx, abuf.chan_mut(self.channel));
+        self.ics0
+            .synth_channel(dsp, srate_idx, abuf.chan_mut(self.channel));
 
         if self.is_pair {
-            self.ics1.synth_channel(dsp, srate_idx, abuf.chan_mut(self.channel + 1));
+            self.ics1
+                .synth_channel(dsp, srate_idx, abuf.chan_mut(self.channel + 1));
         }
     }
 }
@@ -1400,14 +1372,13 @@ impl DSP {
         prev_window_shape: bool,
         dst: &mut [f32],
     ) {
-
         let (long_win, short_win) = match window_shape {
-            true  => (&self.kbd_long_win , &self.kbd_short_win ),
+            true => (&self.kbd_long_win, &self.kbd_short_win),
             false => (&self.sine_long_win, &self.sine_short_win),
         };
 
         let (prev_long_win, prev_short_win) = match prev_window_shape {
-            true  => (&self.kbd_long_win , &self.kbd_short_win ),
+            true => (&self.kbd_long_win, &self.kbd_short_win),
             false => (&self.sine_long_win, &self.sine_short_win),
         };
 
@@ -1417,8 +1388,7 @@ impl DSP {
         // Inverse MDCT
         if seq != EIGHT_SHORT_SEQUENCE {
             self.imdct_long.imdct(coeffs, &mut self.tmp, 1.0 / 2048.0);
-        }
-        else {
+        } else {
             for (ain, aout) in coeffs.chunks(128).zip(self.tmp.chunks_mut(256)) {
                 self.imdct_short.imdct(ain, aout, 1.0 / 256.0);
             }
@@ -1428,13 +1398,12 @@ impl DSP {
             for (w, src) in self.tmp.chunks(256).enumerate() {
                 if w > 0 {
                     for i in 0..128 {
-                        self.ew_buf[w * 128 + i +   0] += src[i +   0] * short_win[i];
+                        self.ew_buf[w * 128 + i + 0] += src[i + 0] * short_win[i];
                         self.ew_buf[w * 128 + i + 128] += src[i + 128] * short_win[127 - i];
                     }
-                }
-                else {
+                } else {
                     for i in 0..128 {
-                        self.ew_buf[i +   0] = src[i +   0] * prev_short_win[i];
+                        self.ew_buf[i + 0] = src[i + 0] * prev_short_win[i];
                         self.ew_buf[i + 128] = src[i + 128] * short_win[127 - i];
                     }
                 }
@@ -1518,18 +1487,15 @@ pub struct AacDecoder {
 }
 
 impl AacDecoder {
-
     fn set_pair(&mut self, pair_no: usize, channel: usize, pair: bool) -> Result<()> {
         if self.pairs.len() <= pair_no {
             self.pairs
                 .push(ChannelPair::new(pair, channel, self.sbinfo));
-        }
-        else {
+        } else {
             validate!(self.pairs[pair_no].channel == channel);
             validate!(self.pairs[pair_no].is_pair == pair);
         }
-        validate!(if pair { channel + 1 }
-            else { channel } < self.m4ainfo.channels);
+        validate!(if pair { channel + 1 } else { channel } < self.m4ainfo.channels);
         Ok(())
     }
 
@@ -1617,21 +1583,17 @@ impl AacDecoder {
     //         pair.ics[1].delay = [0.0; 1024];
     //     }
     // }
-
 }
 
 impl Decoder for AacDecoder {
-
     fn try_new(params: &CodecParameters, _: &DecoderOptions) -> Result<Self> {
-
         let mut m4ainfo = M4AInfo::new();
 
         // If extra data present, parse the audio specific config
         if let Some(extra_data_buf) = &params.extra_data {
             validate!(extra_data_buf.len() >= 2);
             m4ainfo.read(extra_data_buf)?;
-        }
-        else {
+        } else {
             // Otherwise, assume there is no ASC and use the codec parameters for ADTS.
             m4ainfo.srate = params.sample_rate.unwrap();
             m4ainfo.otype = M4AType::LC;
@@ -1649,7 +1611,7 @@ impl Decoder for AacDecoder {
 
         let spec = SignalSpec::new(
             m4ainfo.srate,
-            map_channels(m4ainfo.channels as u32).unwrap()
+            map_channels(m4ainfo.channels as u32).unwrap(),
         );
 
         let duration = m4ainfo.samples as Duration;
@@ -1666,9 +1628,11 @@ impl Decoder for AacDecoder {
     }
 
     fn supported_codecs() -> &'static [CodecDescriptor] {
-        &[
-            support_codec!(CODEC_TYPE_AAC, "aac", "Advanced Audio Coding"),
-        ]
+        &[support_codec!(
+            CODEC_TYPE_AAC,
+            "aac",
+            "Advanced Audio Coding"
+        )]
     }
 
     fn codec_params(&self) -> &CodecParameters {
@@ -1687,15 +1651,13 @@ impl Decoder for AacDecoder {
         // Choose decode step based on the object type.
         match self.m4ainfo.otype {
             M4AType::LC => self.decode_ga(&mut bs)?,
-            _           => return unsupported_error("object type"),
+            _ => return unsupported_error("object type"),
         }
 
         Ok(self.buf.as_audio_buffer_ref())
     }
 
-    fn close(&mut self) {
-
-    }
+    fn close(&mut self) {}
 }
 
 const AAC_UNSIGNED_CODEBOOK: [bool; 11] = [

@@ -6,15 +6,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 use std::cmp::max;
-use std::{f64, f32};
+use std::{f32, f64};
 
-use symphonia_core::errors::{Result, decode_error};
+use symphonia_core::errors::{decode_error, Result};
 use symphonia_core::util::bits;
 
 use lazy_static::lazy_static;
 
-use crate::common::*;
 use super::Granule;
+use crate::common::*;
 
 lazy_static! {
     /// (Left, right) channel coefficients for decoding intensity stereo in MPEG2 bitstreams.
@@ -169,8 +169,7 @@ fn process_intensity_mpeg1(is_pos: usize, mid_side: bool, ch0: &mut [f32], ch1: 
             *l = ratio_l * is;
             *r = ratio_r * is;
         }
-    }
-    else if is_pos == 7 && mid_side {
+    } else if is_pos == 7 && mid_side {
         process_mid_side(ch0, ch1);
     }
 }
@@ -215,8 +214,7 @@ fn process_intensity_mpeg2(
             *l = ratio_l * is;
             *r = ratio_r * is;
         }
-    }
-    else if mid_side {
+    } else if mid_side {
         process_mid_side(ch0, ch1);
     }
 }
@@ -243,9 +241,10 @@ fn process_intensity_long_block(
     let bands = &SFB_LONG_BANDS[header.sample_rate_idx];
 
     // Create an iterator that yields a band start-end pair, and scale-factor.
-    let bands_iter = bands.iter()
-                          .zip(&bands[1..])
-                          .zip(granule.channels[1].scalefacs.iter());
+    let bands_iter = bands
+        .iter()
+        .zip(&bands[1..])
+        .zip(granule.channels[1].scalefacs.iter());
 
     // Decode intensity stereo coded bands based on bitstream version.
     if header.is_mpeg1() {
@@ -260,9 +259,7 @@ fn process_intensity_long_block(
                 );
             }
         }
-
-    }
-    else {
+    } else {
         // The process for decoding intensity stereo coded bands for MPEG2 bitstreams is the same as
         // MPEG1, except that the position ratio table changes based on the least-significant bit of
         // scalefac_compress.
@@ -310,15 +307,15 @@ fn process_intensity_short_block_mpeg1(
     // table.
     let bands = if is_mixed {
         SFB_MIXED_BANDS[header.sample_rate_idx]
-    }
-    else {
+    } else {
         &SFB_SHORT_BANDS[header.sample_rate_idx]
     };
 
     // Create an iterator that yields a band start-end pair, and scale-factor.
-    let bands_iter = bands.iter()
-                          .zip(&bands[1..])
-                          .zip(granule.channels[1].scalefacs.iter());
+    let bands_iter = bands
+        .iter()
+        .zip(&bands[1..])
+        .zip(granule.channels[1].scalefacs.iter());
 
     // Iterate over each band and decode the intensity stereo coding if the band is zero.
     for ((start, end), is_pos) in bands_iter {
@@ -415,8 +412,7 @@ fn process_intensity_short_block_mpeg2(
     // table.
     let bands = if is_mixed {
         SFB_MIXED_BANDS[header.sample_rate_idx]
-    }
-    else {
+    } else {
         &SFB_SHORT_BANDS[header.sample_rate_idx]
     };
 
@@ -451,10 +447,11 @@ fn process_intensity_short_block_mpeg2(
     nz_map >>= is_bound;
 
     // Create an iterator that yields a band start-end pair, and scale-factor.
-    let bands_iter = bands.iter()
-                          .zip(&bands[1..])
-                          .zip(granule.channels[1].scalefacs.iter())
-                          .skip(is_bound);
+    let bands_iter = bands
+        .iter()
+        .zip(&bands[1..])
+        .zip(granule.channels[1].scalefacs.iter())
+        .skip(is_bound);
 
     // Iterate over each band and process it accordingly.
     for ((start, end), is_pos) in bands_iter {
@@ -479,8 +476,7 @@ fn process_intensity_short_block_mpeg2(
             else {
                 nz_map & WIN_MASK == 0
             }
-        }
-        else {
+        } else {
             // If the band is non-zero then it is never intensity encoded.
             false
         };
@@ -517,16 +513,18 @@ pub(super) fn stereo(
     granule: &mut Granule,
     ch: &mut [[f32; 576]; 2],
 ) -> Result<()> {
-
     // Determine whether mid-side, and/or intensity stereo coding is used.
     let (mid_side, intensity) = match header.channel_mode {
-        ChannelMode::JointStereo(Mode::Layer3 { mid_side, intensity }) => (mid_side, intensity),
+        ChannelMode::JointStereo(Mode::Layer3 {
+            mid_side,
+            intensity,
+        }) => (mid_side, intensity),
         ChannelMode::JointStereo(Mode::Intensity { .. }) => {
             // This function only supports decoding Layer 3 stereo encodings, it is a fundamental
             // error in the decoder logic if layer 1 or 2 stereo encodings are being decoded with
             // this function.
             panic!("invalid mode extension for layer 3 stereo decoding")
-        },
+        }
         _ => return Ok(()),
     };
 
@@ -554,13 +552,11 @@ pub(super) fn stereo(
         match granule.channels[1].block_type {
             BlockType::Short { is_mixed } if header.is_mpeg1() => {
                 process_intensity_short_block_mpeg1(header, granule, is_mixed, mid_side, ch0, ch1)
-            },
+            }
             BlockType::Short { is_mixed } => {
                 process_intensity_short_block_mpeg2(header, granule, is_mixed, mid_side, ch0, ch1)
-            },
-            _ => {
-                process_intensity_long_block(header, granule, mid_side, ch0, ch1)
             }
+            _ => process_intensity_long_block(header, granule, mid_side, ch0, ch1),
         }
     }
     // If intensity stereo coding is not enabled, then the intensity bound is up-to the maximum
@@ -575,7 +571,7 @@ pub(super) fn stereo(
         process_mid_side(&mut ch0[0..is_bound], &mut ch1[0..is_bound]);
     }
 
-    // With joint stereo encoding, there is usually a mismatch between the number of samples 
+    // With joint stereo encoding, there is usually a mismatch between the number of samples
     // initially read from the bitstream for each channel. This count is stored as the rzero sample
     // index. However, after joint stereo decoding, both channels will have the same number of
     // samples. Update rzero for both channels with the actual number of samples.

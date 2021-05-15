@@ -66,12 +66,14 @@ impl<B: ByteStream> FiniteStream for ScopedStream<B> {
     }
 }
 
-impl<B: ByteStream,> ByteStream for ScopedStream<B> {
-
+impl<B: ByteStream> ByteStream for ScopedStream<B> {
     #[inline(always)]
     fn read_byte(&mut self) -> io::Result<u8> {
         if self.len - self.read < 1 {
-            return Err(io::Error::new(io::ErrorKind::Other, OUT_OF_BOUNDS_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                OUT_OF_BOUNDS_ERROR_STR,
+            ));
         }
 
         self.read += 1;
@@ -81,7 +83,10 @@ impl<B: ByteStream,> ByteStream for ScopedStream<B> {
     #[inline(always)]
     fn read_double_bytes(&mut self) -> io::Result<[u8; 2]> {
         if self.len - self.read < 2 {
-            return Err(io::Error::new(io::ErrorKind::Other, OUT_OF_BOUNDS_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                OUT_OF_BOUNDS_ERROR_STR,
+            ));
         }
 
         self.read += 2;
@@ -91,7 +96,10 @@ impl<B: ByteStream,> ByteStream for ScopedStream<B> {
     #[inline(always)]
     fn read_triple_bytes(&mut self) -> io::Result<[u8; 3]> {
         if self.len - self.read < 3 {
-            return Err(io::Error::new(io::ErrorKind::Other, OUT_OF_BOUNDS_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                OUT_OF_BOUNDS_ERROR_STR,
+            ));
         }
 
         self.read += 3;
@@ -101,7 +109,10 @@ impl<B: ByteStream,> ByteStream for ScopedStream<B> {
     #[inline(always)]
     fn read_quad_bytes(&mut self) -> io::Result<[u8; 4]> {
         if self.len - self.read < 4 {
-            return Err(io::Error::new(io::ErrorKind::Other, OUT_OF_BOUNDS_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                OUT_OF_BOUNDS_ERROR_STR,
+            ));
         }
 
         self.read += 4;
@@ -118,7 +129,10 @@ impl<B: ByteStream,> ByteStream for ScopedStream<B> {
 
     fn read_buf_exact(&mut self, buf: &mut [u8]) -> io::Result<()> {
         if self.len - self.read < buf.len() as u64 {
-            return Err(io::Error::new(io::ErrorKind::Other, OUT_OF_BOUNDS_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                OUT_OF_BOUNDS_ERROR_STR,
+            ));
         }
 
         self.read += buf.len() as u64;
@@ -130,10 +144,13 @@ impl<B: ByteStream,> ByteStream for ScopedStream<B> {
         &mut self,
         pattern: &[u8],
         align: usize,
-        buf: &'a mut [u8]
+        buf: &'a mut [u8],
     ) -> io::Result<&'a mut [u8]> {
         if self.len - self.read < buf.len() as u64 {
-            return Err(io::Error::new(io::ErrorKind::Other, OUT_OF_BOUNDS_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                OUT_OF_BOUNDS_ERROR_STR,
+            ));
         }
 
         let result = self.inner.scan_bytes_aligned(pattern, align, buf)?;
@@ -143,7 +160,10 @@ impl<B: ByteStream,> ByteStream for ScopedStream<B> {
 
     fn ignore_bytes(&mut self, count: u64) -> io::Result<()> {
         if self.len - self.read < count {
-            return Err(io::Error::new(io::ErrorKind::Other, OUT_OF_BOUNDS_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                OUT_OF_BOUNDS_ERROR_STR,
+            ));
         }
 
         self.read += count;

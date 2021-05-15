@@ -15,17 +15,18 @@ pub mod default {
 
     use lazy_static::lazy_static;
 
-    use symphonia_core::probe::Probe;
     use symphonia_core::codecs::CodecRegistry;
+    use symphonia_core::probe::Probe;
 
     lazy_static! {
         static ref CODEC_REGISTRY: CodecRegistry = {
-            #[cfg(feature = "aac")]
-            use symphonia_codec_aac::AacDecoder;
             #[cfg(feature = "flac")]
             use symphonia_bundle_flac::FlacDecoder;
             #[cfg(feature = "mp3")]
             use symphonia_bundle_mp3::Mp3Decoder;
+            #[cfg(feature = "aac")]
+            use symphonia_codec_aac::AacDecoder;
+
             #[cfg(feature = "pcm")]
             use symphonia_codec_pcm::PcmDecoder;
 
@@ -49,18 +50,18 @@ pub mod default {
 
     lazy_static! {
         static ref PROBE: Probe = {
-            #[cfg(feature = "aac")]
-            use symphonia_codec_aac::AdtsReader;
             #[cfg(feature = "flac")]
             use symphonia_bundle_flac::FlacReader;
-            #[cfg(feature = "isomp4")]
-            use symphonia_format_isomp4::IsoMp4Reader;
             #[cfg(feature = "mp3")]
             use symphonia_bundle_mp3::Mp3Reader;
-            #[cfg(feature = "wav")]
-            use symphonia_format_wav::WavReader;
+            #[cfg(feature = "aac")]
+            use symphonia_codec_aac::AdtsReader;
+            #[cfg(feature = "isomp4")]
+            use symphonia_format_isomp4::IsoMp4Reader;
             #[cfg(feature = "ogg")]
             use symphonia_format_ogg::OggReader;
+            #[cfg(feature = "wav")]
+            use symphonia_format_wav::WavReader;
 
             use symphonia_metadata::id3v2::Id3v2Reader;
 
@@ -83,7 +84,6 @@ pub mod default {
 
             #[cfg(feature = "ogg")]
             registry.register_all::<OggReader>();
-
 
             registry.register_all::<Id3v2Reader>();
 
@@ -108,7 +108,6 @@ pub mod default {
     pub fn get_probe() -> &'static Probe {
         &PROBE
     }
-
 }
 
 pub use symphonia_core as core;

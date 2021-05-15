@@ -113,8 +113,8 @@ impl LogicalStream {
             Some(packet_len) => {
                 let slice = &self.buf[self.read_from..self.read_from + packet_len];
                 Some(Box::from(slice))
-            },
-            None => None
+            }
+            None => None,
         }
     }
 
@@ -123,9 +123,8 @@ impl LogicalStream {
         match self.packets.pop_front() {
             Some(packet_len) => {
                 self.read_from += packet_len;
-            },
-            None => ()
+            }
+            None => (),
         }
     }
-
 }

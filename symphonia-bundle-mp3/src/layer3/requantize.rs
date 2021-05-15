@@ -8,15 +8,18 @@
 use std::cmp::min;
 use std::{f32, f64};
 
-use symphonia_core::io::{BitStream, huffman::{H8, HuffmanTable}};
 use symphonia_core::errors::Result;
+use symphonia_core::io::{
+    huffman::{HuffmanTable, H8},
+    BitStream,
+};
 
 use lazy_static::lazy_static;
 use log::info;
 
+use super::GranuleChannel;
 use crate::common::*;
 use crate::huffman_tables::*;
-use super::GranuleChannel;
 
 lazy_static! {
     /// Lookup table for computing x(i) = s(i)^(4/3) where s(i) is a decoded Huffman sample. The
@@ -43,69 +46,165 @@ struct MpegHuffmanTable {
 
 const HUFFMAN_TABLES: [MpegHuffmanTable; 32] = [
     // Table 0
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_0,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_0,
+        linbits: 0,
+    },
     // Table 1
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_1,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_1,
+        linbits: 0,
+    },
     // Table 2
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_2,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_2,
+        linbits: 0,
+    },
     // Table 3
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_3,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_3,
+        linbits: 0,
+    },
     // Table 4 (not used)
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_0,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_0,
+        linbits: 0,
+    },
     // Table 5
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_5,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_5,
+        linbits: 0,
+    },
     // Table 6
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_6,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_6,
+        linbits: 0,
+    },
     // Table 7
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_7,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_7,
+        linbits: 0,
+    },
     // Table 8
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_8,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_8,
+        linbits: 0,
+    },
     // Table 9
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_9,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_9,
+        linbits: 0,
+    },
     // Table 10
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_10, linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_10,
+        linbits: 0,
+    },
     // Table 11
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_11, linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_11,
+        linbits: 0,
+    },
     // Table 12
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_12, linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_12,
+        linbits: 0,
+    },
     // Table 13
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_13, linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_13,
+        linbits: 0,
+    },
     // Table 14 (not used)
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_0,  linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_0,
+        linbits: 0,
+    },
     // Table 15
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_15, linbits:  0 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_15,
+        linbits: 0,
+    },
     // Table 16
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_16, linbits:  1 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_16,
+        linbits: 1,
+    },
     // Table 17
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_16, linbits:  2 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_16,
+        linbits: 2,
+    },
     // Table 18
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_16, linbits:  3 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_16,
+        linbits: 3,
+    },
     // Table 19
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_16, linbits:  4 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_16,
+        linbits: 4,
+    },
     // Table 20
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_16, linbits:  6 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_16,
+        linbits: 6,
+    },
     // Table 21
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_16, linbits:  8 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_16,
+        linbits: 8,
+    },
     // Table 22
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_16, linbits: 10 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_16,
+        linbits: 10,
+    },
     // Table 23
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_16, linbits: 13 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_16,
+        linbits: 13,
+    },
     // Table 24
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_24, linbits:  4 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_24,
+        linbits: 4,
+    },
     // Table 25
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_24, linbits:  5 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_24,
+        linbits: 5,
+    },
     // Table 26
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_24, linbits:  6 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_24,
+        linbits: 6,
+    },
     // Table 27
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_24, linbits:  7 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_24,
+        linbits: 7,
+    },
     // Table 28
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_24, linbits:  8 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_24,
+        linbits: 8,
+    },
     // Table 29
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_24, linbits:  9 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_24,
+        linbits: 9,
+    },
     // Table 30
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_24, linbits: 11 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_24,
+        linbits: 11,
+    },
     // Table 31
-    MpegHuffmanTable { huff_table: &HUFFMAN_TABLE_24, linbits: 13 },
+    MpegHuffmanTable {
+        huff_table: &HUFFMAN_TABLE_24,
+        linbits: 13,
+    },
 ];
 
 /// Reads the Huffman coded spectral samples for a given channel in a granule from a `BitStream`
@@ -121,7 +220,6 @@ pub(super) fn read_huffman_samples<B: BitStream>(
     part3_bits: u32,
     buf: &mut [f32; 576],
 ) -> Result<usize> {
-
     // If there are no Huffman code bits, zero all samples and return immediately.
     if part3_bits == 0 {
         for sample in buf.iter_mut() {
@@ -146,12 +244,11 @@ pub(super) fn read_huffman_samples<B: BitStream>(
     let regions: [usize; 3] = [
         min(channel.region1_start as usize, big_values_len),
         min(channel.region2_start as usize, big_values_len),
-        min(                           576, big_values_len),
+        min(576, big_values_len),
     ];
 
     // Iterate over each region in big_values.
     for (region_idx, region_end) in regions.iter().enumerate() {
-
         // Select the Huffman table based on the region's table select value.
         let table = &HUFFMAN_TABLES[channel.table_select[region_idx] as usize];
 
@@ -189,10 +286,13 @@ pub(super) fn read_huffman_samples<B: BitStream>(
 
                 // The next bit is the sign bit. The value of the sample is raised to the (4/3)
                 // power.
-                buf[i] = if bs.read_bit()? { -pow43_table[x] } else { pow43_table[x] };
+                buf[i] = if bs.read_bit()? {
+                    -pow43_table[x]
+                } else {
+                    pow43_table[x]
+                };
                 bits_read += 1;
-            }
-            else {
+            } else {
                 buf[i] = 0.0;
             }
 
@@ -205,10 +305,13 @@ pub(super) fn read_huffman_samples<B: BitStream>(
                     bits_read += table.linbits;
                 }
 
-                buf[i] = if bs.read_bit()? { -pow43_table[y] } else { pow43_table[y] };
+                buf[i] = if bs.read_bit()? {
+                    -pow43_table[y]
+                } else {
+                    pow43_table[y]
+                };
                 bits_read += 1;
-            }
-            else {
+            } else {
                 buf[i] = 0.0;
             }
 
@@ -219,8 +322,7 @@ pub(super) fn read_huffman_samples<B: BitStream>(
     // Select the Huffman table for the count1 partition.
     let count1_table = if channel.count1table_select {
         QUADS_HUFFMAN_TABLE_B
-    }
-    else {
+    } else {
         QUADS_HUFFMAN_TABLE_A
     };
 
@@ -230,7 +332,7 @@ pub(super) fn read_huffman_samples<B: BitStream>(
         // case of a count1 overrun (see below for more details).
         let (value, code_len) = bs.read_huffman(
             &count1_table,
-            part3_bits + count1_table.n_table_bits - bits_read
+            part3_bits + count1_table.n_table_bits - bits_read,
         )?;
         bits_read += code_len;
 
@@ -243,8 +345,7 @@ pub(super) fn read_huffman_samples<B: BitStream>(
         if value & 0x8 != 0 {
             buf[i] = if bs.read_bit()? { -1.0 } else { 1.0 };
             bits_read += 1;
-        }
-        else {
+        } else {
             buf[i] = 0.0;
         }
 
@@ -253,8 +354,7 @@ pub(super) fn read_huffman_samples<B: BitStream>(
         if value & 0x4 != 0 {
             buf[i] = if bs.read_bit()? { -1.0 } else { 1.0 };
             bits_read += 1;
-        }
-        else {
+        } else {
             buf[i] = 0.0;
         }
 
@@ -263,8 +363,7 @@ pub(super) fn read_huffman_samples<B: BitStream>(
         if value & 0x2 != 0 {
             buf[i] = if bs.read_bit()? { -1.0 } else { 1.0 };
             bits_read += 1;
-        }
-        else {
+        } else {
             buf[i] = 0.0;
         }
 
@@ -273,8 +372,7 @@ pub(super) fn read_huffman_samples<B: BitStream>(
         if value & 0x1 != 0 {
             buf[i] = if bs.read_bit()? { -1.0 } else { 1.0 };
             bits_read += 1;
-        }
-        else {
+        } else {
             buf[i] = 0.0;
         }
 
@@ -297,8 +395,8 @@ pub(super) fn read_huffman_samples<B: BitStream>(
     // The final partition after the count1 partition is the rzero partition. Samples in this
     // partition are all 0.
     for j in (i..576).step_by(2) {
-        buf[j+0] = 0.0;
-        buf[j+1] = 0.0;
+        buf[j + 0] = 0.0;
+        buf[j + 1] = 0.0;
     }
 
     Ok(i)
@@ -321,8 +419,7 @@ fn requantize_long(channel: &GranuleChannel, bands: &[usize], buf: &mut [f32; 57
 
     // The preemphasis table is from table B.6 in ISO/IEC 11172-3.
     const PRE_EMPHASIS: [u8; 22] = [
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        1, 1, 1, 1, 2, 2, 3, 3, 3, 2, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 3, 3, 3, 2, 0,
     ];
 
     // Calculate A, it is constant for the entire requantization.
@@ -410,7 +507,7 @@ fn requantize_short(
         // Calculate 2^(0.25*A) * 2^(-B). This can be rewritten as 2^{ 0.25 * (A - 4 * B) }.
         // Since scalefac_shift multiplies by 4 above, the final equation becomes
         // 2^{ 0.25 * (A - B) }.
-        let pow2ab = f64::powf(2.0,  0.25 * f64::from(a[i % 3] - b)) as f32;
+        let pow2ab = f64::powf(2.0, 0.25 * f64::from(a[i % 3] - b)) as f32;
 
         // Clamp the ending sample index to the rzero sample index. Since samples starting from
         // rzero are 0, there is no point in requantizing them.
@@ -422,19 +519,14 @@ fn requantize_short(
             *sample *= pow2ab;
         }
     }
-
 }
 
 /// Requantize samples in `buf` regardless of block type.
-pub(super) fn requantize(
-    header: &FrameHeader,
-    channel: &GranuleChannel,
-    buf: &mut [f32; 576],
-) {
+pub(super) fn requantize(header: &FrameHeader, channel: &GranuleChannel, buf: &mut [f32; 576]) {
     match channel.block_type {
         BlockType::Short { is_mixed: false } => {
             requantize_short(channel, &SFB_SHORT_BANDS[header.sample_rate_idx], 0, buf);
-        },
+        }
         BlockType::Short { is_mixed: true } => {
             // A mixed block is a combination of a long block and short blocks. The first few scale
             // factor bands, and thus samples, belong to a single long block, while the remaining
@@ -448,9 +540,9 @@ pub(super) fn requantize(
 
             requantize_long(channel, &bands[..switch], buf);
             requantize_short(channel, &bands[switch..], switch, buf);
-        },
+        }
         _ => {
             requantize_long(channel, &SFB_LONG_BANDS[header.sample_rate_idx], buf);
-        },
+        }
     }
 }

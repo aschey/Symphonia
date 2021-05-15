@@ -253,11 +253,11 @@ impl_from_for_value!(v, &[u8], Value::Binary(Box::from(v)));
 impl_from_for_value!(v, bool, Value::Boolean(v));
 impl_from_for_value!(v, f32, Value::Float(f64::from(v)));
 impl_from_for_value!(v, f64, Value::Float(v));
-impl_from_for_value!(v, i8 , Value::SignedInt(i64::from(v)));
+impl_from_for_value!(v, i8, Value::SignedInt(i64::from(v)));
 impl_from_for_value!(v, i16, Value::SignedInt(i64::from(v)));
 impl_from_for_value!(v, i32, Value::SignedInt(i64::from(v)));
 impl_from_for_value!(v, i64, Value::SignedInt(v));
-impl_from_for_value!(v, u8 , Value::UnsignedInt(u64::from(v)));
+impl_from_for_value!(v, u8, Value::UnsignedInt(u64::from(v)));
 impl_from_for_value!(v, u16, Value::UnsignedInt(u64::from(v)));
 impl_from_for_value!(v, u32, Value::UnsignedInt(u64::from(v)));
 impl_from_for_value!(v, u64, Value::UnsignedInt(v));
@@ -272,8 +272,16 @@ fn buffer_to_hex_string(buf: &[u8]) -> String {
         let u = (ch & 0xf0) >> 4;
         let l = ch & 0x0f;
         output.push_str("\\0x");
-        output.push(if u < 10 { (b'0' + u) as char } else { (b'a' + u - 10) as char});
-        output.push(if l < 10 { (b'0' + l) as char } else { (b'a' + l - 10) as char});
+        output.push(if u < 10 {
+            (b'0' + u) as char
+        } else {
+            (b'a' + u - 10) as char
+        });
+        output.push(if l < 10 {
+            (b'0' + l) as char
+        } else {
+            (b'a' + l - 10) as char
+        });
     }
 
     output
@@ -335,9 +343,7 @@ impl fmt::Display for Tag {
                 write!(
                     f,
                     "{{ std_key={:?}, key=\"{}\", value={} }}",
-                    std_key,
-                    self.key,
-                    self.value
+                    std_key, self.key, self.value
                 )
             }
             None => write!(f, "{{ key=\"{}\", value={} }}", self.key, self.value),
@@ -495,8 +501,7 @@ impl MetadataQueue {
 
         if queue.len() > 0 {
             Some(MetadataRef { guard: queue })
-        }
-        else {
+        } else {
             None
         }
     }
@@ -510,8 +515,7 @@ impl MetadataQueue {
 
         if queue.len() > 1 {
             queue.pop_front()
-        }
-        else {
+        } else {
             None
         }
     }

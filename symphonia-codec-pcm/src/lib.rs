@@ -10,29 +10,29 @@
 
 use symphonia_core::support_codec;
 
-use symphonia_core::audio::{AudioBuffer, AudioBufferRef, AsAudioBufferRef, Signal, SignalSpec};
-use symphonia_core::codecs::{CodecParameters, CodecDescriptor, Decoder, DecoderOptions};
+use symphonia_core::audio::{AsAudioBufferRef, AudioBuffer, AudioBufferRef, Signal, SignalSpec};
+use symphonia_core::codecs::{CodecDescriptor, CodecParameters, Decoder, DecoderOptions};
 // Signed Int PCM codecs
-use symphonia_core::codecs::{CODEC_TYPE_PCM_S8, CODEC_TYPE_PCM_S16LE};
-use symphonia_core::codecs::{CODEC_TYPE_PCM_S24LE, CODEC_TYPE_PCM_S32LE};
 use symphonia_core::codecs::{CODEC_TYPE_PCM_S16BE, CODEC_TYPE_PCM_S24BE, CODEC_TYPE_PCM_S32BE};
+use symphonia_core::codecs::{CODEC_TYPE_PCM_S16LE, CODEC_TYPE_PCM_S8};
+use symphonia_core::codecs::{CODEC_TYPE_PCM_S24LE, CODEC_TYPE_PCM_S32LE};
 // Unsigned Int PCM codecs
-use symphonia_core::codecs::{CODEC_TYPE_PCM_U8, CODEC_TYPE_PCM_U16LE};
-use symphonia_core::codecs::{CODEC_TYPE_PCM_U24LE, CODEC_TYPE_PCM_U32LE};
 use symphonia_core::codecs::{CODEC_TYPE_PCM_U16BE, CODEC_TYPE_PCM_U24BE, CODEC_TYPE_PCM_U32BE};
+use symphonia_core::codecs::{CODEC_TYPE_PCM_U16LE, CODEC_TYPE_PCM_U8};
+use symphonia_core::codecs::{CODEC_TYPE_PCM_U24LE, CODEC_TYPE_PCM_U32LE};
 // Floating point PCM codecs
-use symphonia_core::codecs::{CODEC_TYPE_PCM_F32LE, CODEC_TYPE_PCM_F32BE};
-use symphonia_core::codecs::{CODEC_TYPE_PCM_F64LE, CODEC_TYPE_PCM_F64BE};
+use symphonia_core::codecs::{CODEC_TYPE_PCM_F32BE, CODEC_TYPE_PCM_F32LE};
+use symphonia_core::codecs::{CODEC_TYPE_PCM_F64BE, CODEC_TYPE_PCM_F64LE};
 // G711 ALaw and MuLaw PCM cdoecs.
 use symphonia_core::codecs::{CODEC_TYPE_PCM_ALAW, CODEC_TYPE_PCM_MULAW};
 use symphonia_core::conv::FromSample;
-use symphonia_core::errors::{Result, unsupported_error};
+use symphonia_core::errors::{unsupported_error, Result};
 use symphonia_core::formats::Packet;
 use symphonia_core::io::ByteStream;
 
 macro_rules! read_pcm_signed {
     ($buf:expr, $read:expr, $shift:expr) => {
-        $buf.fill(| audio_planes, idx | -> Result<()> {
+        $buf.fill(|audio_planes, idx| -> Result<()> {
             for plane in audio_planes.planes() {
                 plane[idx] = (($read as u32) << $shift) as i32;
             }
@@ -43,7 +43,7 @@ macro_rules! read_pcm_signed {
 
 macro_rules! read_pcm_unsigned {
     ($buf:expr, $read:expr, $shift:expr) => {
-        $buf.fill(| audio_planes, idx | -> Result<()> {
+        $buf.fill(|audio_planes, idx| -> Result<()> {
             for plane in audio_planes.planes() {
                 plane[idx] = (($read as u32) << $shift).wrapping_add(0x80000000) as i32
             }
@@ -54,7 +54,7 @@ macro_rules! read_pcm_unsigned {
 
 macro_rules! read_pcm_floating {
     ($buf:expr, $read:expr) => {
-        $buf.fill(| audio_planes, idx | -> Result<()> {
+        $buf.fill(|audio_planes, idx| -> Result<()> {
             for plane in audio_planes.planes() {
                 plane[idx] = i32::from_sample($read);
             }
@@ -65,7 +65,7 @@ macro_rules! read_pcm_floating {
 
 macro_rules! read_pcm_transfer_func {
     ($buf:expr, $func:expr) => {
-        $buf.fill(| audio_planes, idx | -> Result<()> {
+        $buf.fill(|audio_planes, idx| -> Result<()> {
             for plane in audio_planes.planes() {
                 plane[idx] = i32::from_sample($func);
             }
@@ -77,7 +77,7 @@ macro_rules! read_pcm_transfer_func {
 // alaw_to_linear and mulaw_to_linear are adaptations of alaw2linear and ulaw2linear from g711.c by
 // SUN Microsystems (unrestricted use license).
 const XLAW_QUANT_MASK: u8 = 0x0f;
-const XLAW_SEG_MASK: u8   = 0x70;
+const XLAW_SEG_MASK: u8 = 0x70;
 const XLAW_SEG_SHIFT: u32 = 4;
 
 fn alaw_to_linear(mut a_val: u8) -> i16 {
@@ -92,7 +92,11 @@ fn alaw_to_linear(mut a_val: u8) -> i16 {
         _ => t = (t + 0x108) << (seg - 1),
     }
 
-    if a_val & 0x80 == 0x80 { t } else { -t }
+    if a_val & 0x80 == 0x80 {
+        t
+    } else {
+        -t
+    }
 }
 
 fn mulaw_to_linear(mut mu_val: u8) -> i16 {
@@ -106,7 +110,11 @@ fn mulaw_to_linear(mut mu_val: u8) -> i16 {
     let mut t = i16::from((mu_val & XLAW_QUANT_MASK) << 3) + BIAS;
     t <<= (mu_val & XLAW_SEG_MASK) >> XLAW_SEG_SHIFT;
 
-    if mu_val & 0x80 == 0x80 { t - BIAS } else { BIAS - t }
+    if mu_val & 0x80 == 0x80 {
+        t - BIAS
+    } else {
+        BIAS - t
+    }
 }
 
 /// `PcmDecoder` implements a decoder for all raw PCM, and log-PCM codecs.
@@ -117,33 +125,31 @@ pub struct PcmDecoder {
 }
 
 impl Decoder for PcmDecoder {
-
     fn try_new(params: &CodecParameters, _options: &DecoderOptions) -> Result<Self> {
         let frames = match params.max_frames_per_packet {
             Some(frames) => frames,
-            _            => return unsupported_error("pcm: maximum frames per packet is required"),
+            _ => return unsupported_error("pcm: maximum frames per packet is required"),
         };
 
         let rate = match params.sample_rate {
             Some(rate) => rate,
-            _          => return unsupported_error("pcm: sample rate is required")
+            _ => return unsupported_error("pcm: sample rate is required"),
         };
 
         let spec = if let Some(channels) = params.channels {
             SignalSpec::new(rate, channels)
-        }
-        else if let Some(layout) = params.channel_layout {
+        } else if let Some(layout) = params.channel_layout {
             SignalSpec::new_with_layout(rate, layout)
-        }
-        else {
+        } else {
             return unsupported_error("pcm: channels or channel_layout is required");
         };
 
         // Signed and unsigned integer PCM codecs require the coded sample bit-width to be known.
         // Try to get the bits per coded sample parameter, or, if failing that, the bits per
         // sample parameter.
-        let sample_width = params.bits_per_coded_sample.unwrap_or_else(
-            || params.bits_per_sample.unwrap_or(0));
+        let sample_width = params
+            .bits_per_coded_sample
+            .unwrap_or_else(|| params.bits_per_sample.unwrap_or(0));
 
         // If the width is not known, then the bits per coded sample may be constant and
         // implicit to the codec.
@@ -197,11 +203,7 @@ impl Decoder for PcmDecoder {
                 "pcm_s16be",
                 "PCM Signed 16-bit Big-Endian Interleaved"
             ),
-            support_codec!(
-                CODEC_TYPE_PCM_S8,
-                "pcm_s8",
-                "PCM Signed 8-bit Interleaved"
-            ),
+            support_codec!(CODEC_TYPE_PCM_S8, "pcm_s8", "PCM Signed 8-bit Interleaved"),
             support_codec!(
                 CODEC_TYPE_PCM_U32LE,
                 "pcm_u32le",
@@ -257,16 +259,8 @@ impl Decoder for PcmDecoder {
                 "pcm_f64be",
                 "PCM 64-bit Big-Endian Floating Point Interleaved"
             ),
-            support_codec!(
-                CODEC_TYPE_PCM_ALAW ,
-                "pcm_alaw" ,
-                "PCM A-law"
-            ),
-            support_codec!(
-                CODEC_TYPE_PCM_MULAW,
-                "pcm_mulaw",
-                "PCM Mu-law"
-            ),
+            support_codec!(CODEC_TYPE_PCM_ALAW, "pcm_alaw", "PCM A-law"),
+            support_codec!(CODEC_TYPE_PCM_MULAW, "pcm_mulaw", "PCM Mu-law"),
             // support_codec!(
             //     CODEC_TYPE_PCM_S32LE_PLANAR,
             //     "pcm_s32le_planar",
@@ -370,33 +364,37 @@ impl Decoder for PcmDecoder {
         // Signed or unsigned integer PCM codecs must be shifted to expand the sample into the
         // entire i32 range. Only floating point samples may exceed 32 bits per coded sample, but
         // they cannot be shifted, so int_shift = 0.
-        let int_shift = if self.sample_width <= 32 { 32 - self.sample_width } else { 0 };
+        let int_shift = if self.sample_width <= 32 {
+            32 - self.sample_width
+        } else {
+            0
+        };
 
         let _ = match self.params.codec {
-            CODEC_TYPE_PCM_S32LE => read_pcm_signed!(self.buf,   stream.read_u32()?,    int_shift),
-            CODEC_TYPE_PCM_S32BE => read_pcm_signed!(self.buf,   stream.read_be_u32()?, int_shift),
-            CODEC_TYPE_PCM_S24LE => read_pcm_signed!(self.buf,   stream.read_u24()?,    int_shift),
-            CODEC_TYPE_PCM_S24BE => read_pcm_signed!(self.buf,   stream.read_be_u24()?, int_shift),
-            CODEC_TYPE_PCM_S16LE => read_pcm_signed!(self.buf,   stream.read_u16()?,    int_shift),
-            CODEC_TYPE_PCM_S16BE => read_pcm_signed!(self.buf,   stream.read_be_u16()?, int_shift),
-            CODEC_TYPE_PCM_S8    => read_pcm_signed!(self.buf,   stream.read_u8()?,     int_shift),
-            CODEC_TYPE_PCM_U32LE => read_pcm_unsigned!(self.buf, stream.read_u32()?,    int_shift),
+            CODEC_TYPE_PCM_S32LE => read_pcm_signed!(self.buf, stream.read_u32()?, int_shift),
+            CODEC_TYPE_PCM_S32BE => read_pcm_signed!(self.buf, stream.read_be_u32()?, int_shift),
+            CODEC_TYPE_PCM_S24LE => read_pcm_signed!(self.buf, stream.read_u24()?, int_shift),
+            CODEC_TYPE_PCM_S24BE => read_pcm_signed!(self.buf, stream.read_be_u24()?, int_shift),
+            CODEC_TYPE_PCM_S16LE => read_pcm_signed!(self.buf, stream.read_u16()?, int_shift),
+            CODEC_TYPE_PCM_S16BE => read_pcm_signed!(self.buf, stream.read_be_u16()?, int_shift),
+            CODEC_TYPE_PCM_S8 => read_pcm_signed!(self.buf, stream.read_u8()?, int_shift),
+            CODEC_TYPE_PCM_U32LE => read_pcm_unsigned!(self.buf, stream.read_u32()?, int_shift),
             CODEC_TYPE_PCM_U32BE => read_pcm_unsigned!(self.buf, stream.read_be_u32()?, int_shift),
-            CODEC_TYPE_PCM_U24LE => read_pcm_unsigned!(self.buf, stream.read_u24()?,    int_shift),
+            CODEC_TYPE_PCM_U24LE => read_pcm_unsigned!(self.buf, stream.read_u24()?, int_shift),
             CODEC_TYPE_PCM_U24BE => read_pcm_unsigned!(self.buf, stream.read_be_u24()?, int_shift),
-            CODEC_TYPE_PCM_U16LE => read_pcm_unsigned!(self.buf, stream.read_u16()?,    int_shift),
+            CODEC_TYPE_PCM_U16LE => read_pcm_unsigned!(self.buf, stream.read_u16()?, int_shift),
             CODEC_TYPE_PCM_U16BE => read_pcm_unsigned!(self.buf, stream.read_be_u16()?, int_shift),
-            CODEC_TYPE_PCM_U8    => read_pcm_unsigned!(self.buf, stream.read_u8()?,     int_shift),
+            CODEC_TYPE_PCM_U8 => read_pcm_unsigned!(self.buf, stream.read_u8()?, int_shift),
             CODEC_TYPE_PCM_F32LE => read_pcm_floating!(self.buf, stream.read_f32()?),
             CODEC_TYPE_PCM_F32BE => read_pcm_floating!(self.buf, stream.read_be_f32()?),
             CODEC_TYPE_PCM_F64LE => read_pcm_floating!(self.buf, stream.read_f64()?),
             CODEC_TYPE_PCM_F64BE => read_pcm_floating!(self.buf, stream.read_be_f64()?),
-            CODEC_TYPE_PCM_ALAW  => {
+            CODEC_TYPE_PCM_ALAW => {
                 read_pcm_transfer_func!(self.buf, alaw_to_linear(stream.read_u8()?))
-            },
+            }
             CODEC_TYPE_PCM_MULAW => {
                 read_pcm_transfer_func!(self.buf, mulaw_to_linear(stream.read_u8()?))
-            },
+            }
             // CODEC_TYPE_PCM_S32LE_PLANAR =>
             // CODEC_TYPE_PCM_S32BE_PLANAR =>
             // CODEC_TYPE_PCM_S24LE_PLANAR =>
@@ -415,7 +413,7 @@ impl Decoder for PcmDecoder {
             // CODEC_TYPE_PCM_F32BE_PLANAR =>
             // CODEC_TYPE_PCM_F64LE_PLANAR =>
             // CODEC_TYPE_PCM_F64BE_PLANAR =>
-            _ => return unsupported_error("pcm: codec is unsupported.")
+            _ => return unsupported_error("pcm: codec is unsupported."),
         };
 
         Ok(self.buf.as_audio_buffer_ref())

@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use symphonia_core::errors::{Result, unsupported_error};
+use symphonia_core::errors::{unsupported_error, Result};
 use symphonia_core::io::ByteStream;
 
 use crate::atoms::{Atom, AtomHeader, EsdsAtom};
@@ -48,7 +48,7 @@ impl SoundSampleDescription {
                 sample_rate = reader.read_be_f64()?;
                 n_channels = reader.read_be_u32()?;
 
-                // Skip 5 32-bit fields: 
+                // Skip 5 32-bit fields:
                 reader.ignore_bytes(20)?;
             }
             _ => {
@@ -82,7 +82,7 @@ impl Atom for Mp4aAtom {
     fn read<B: ByteStream>(reader: &mut B, header: AtomHeader) -> Result<Self> {
         // First 6 bytes should be all 0.
         reader.ignore_bytes(6)?;
-        
+
         // Data reference.
         let _ = reader.read_be_u16()?;
 

@@ -9,13 +9,13 @@ use symphonia_core::support_format;
 
 use symphonia_core::audio::Channels;
 use symphonia_core::codecs::{CodecParameters, CODEC_TYPE_AAC};
-use symphonia_core::errors::{Result, decode_error};
+use symphonia_core::errors::{decode_error, Result};
 use symphonia_core::formats::prelude::*;
 use symphonia_core::io::*;
 use symphonia_core::meta::MetadataQueue;
 use symphonia_core::probe::{Descriptor, Instantiate, QueryDescriptor};
 
-use super::common::{AAC_SAMPLE_RATES, map_channels, M4AType, M4A_TYPES};
+use super::common::{map_channels, M4AType, AAC_SAMPLE_RATES, M4A_TYPES};
 
 /// Audio Data Transport Stream (ADTS) format reader.
 ///
@@ -29,16 +29,13 @@ pub struct AdtsReader {
 
 impl QueryDescriptor for AdtsReader {
     fn query() -> &'static [Descriptor] {
-        &[
-            support_format!(
-                "aac",
-                "Audio Data Transport Stream (native AAC)",
-                &[ "aac" ],
-                &[ "audio/aac" ],
-                &[
-                    &[ 0xff, 0xf1 ]
-                ]),
-        ]
+        &[support_format!(
+            "aac",
+            "Audio Data Transport Stream (native AAC)",
+            &["aac"],
+            &["audio/aac"],
+            &[&[0xff, 0xf1]]
+        )]
     }
 
     fn score(_context: &[u8]) -> u8 {
@@ -55,7 +52,6 @@ struct AdtsHeader {
 }
 
 impl AdtsHeader {
-
     fn sync<B: ByteStream>(reader: &mut B) -> Result<()> {
         let mut sync = 0u16;
 
@@ -85,7 +81,7 @@ impl AdtsHeader {
 
         // Channel configuration
         let channels = match bs.read_bits_leq32(3)? {
-            0   => None,
+            0 => None,
             idx => map_channels(idx),
         };
 
@@ -114,15 +110,15 @@ impl AdtsHeader {
 }
 
 impl FormatReader for AdtsReader {
-
     fn try_new(mut source: MediaSourceStream, _options: &FormatOptions) -> Result<Self> {
         let header = AdtsHeader::read(&mut source)?;
 
         // Use the header to populate the codec parameters.
         let mut params = CodecParameters::new();
 
-        params.for_codec(CODEC_TYPE_AAC)
-              .with_sample_rate(header.sample_rate);
+        params
+            .for_codec(CODEC_TYPE_AAC)
+            .with_sample_rate(header.sample_rate);
 
         if let Some(channels) = header.channels {
             params.with_channels(channels);
@@ -133,7 +129,7 @@ impl FormatReader for AdtsReader {
 
         Ok(AdtsReader {
             reader: source,
-            streams: vec![ Stream::new(0, params) ],
+            streams: vec![Stream::new(0, params)],
             cues: Vec::new(),
             metadata: Default::default(),
         })
@@ -147,7 +143,7 @@ impl FormatReader for AdtsReader {
             0,
             0,
             0,
-            self.reader.read_boxed_slice_exact(header.frame_len)?
+            self.reader.read_boxed_slice_exact(header.frame_len)?,
         ))
     }
 
@@ -166,5 +162,4 @@ impl FormatReader for AdtsReader {
     fn seek(&mut self, _to: SeekTo) -> Result<SeekedTo> {
         unimplemented!();
     }
-
 }

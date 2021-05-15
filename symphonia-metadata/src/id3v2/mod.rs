@@ -7,11 +7,11 @@
 
 //! An ID3v2 metadata reader.
 
-use symphonia_core::support_metadata;
-use symphonia_core::errors::{Result, decode_error, unsupported_error};
+use symphonia_core::errors::{decode_error, unsupported_error, Result};
 use symphonia_core::io::*;
 use symphonia_core::meta::{Metadata, MetadataBuilder, MetadataOptions, MetadataReader};
-use symphonia_core::probe::{QueryDescriptor, Descriptor, Instantiate};
+use symphonia_core::probe::{Descriptor, Instantiate, QueryDescriptor};
+use symphonia_core::support_metadata;
 
 use log::{info, trace};
 
@@ -113,20 +113,20 @@ fn read_id3v2_header<B: ByteStream>(reader: &mut B) -> Result<Header> {
         has_footer: false,
     };
 
-    // Major and minor version numbers should never equal 0xff as per the specification. 
+    // Major and minor version numbers should never equal 0xff as per the specification.
     if major_version == 0xff || minor_version == 0xff {
         return decode_error("invalid version number(s)");
     }
 
-    // Only support versions 2.2.x (first version) to 2.4.x (latest version as of May 2019) of the 
+    // Only support versions 2.2.x (first version) to 2.4.x (latest version as of May 2019) of the
     // specification.
     if major_version < 2 || major_version > 4 {
         return unsupported_error("unsupported ID3v2 version");
     }
 
-    // Version 2.2 of the standard specifies a compression flag bit, but does not specify a 
-    // compression standard. Future versions of the standard remove this feature and repurpose this 
-    // bit for other features. Since there is no way to know how to handle the remaining tag data, 
+    // Version 2.2 of the standard specifies a compression flag bit, but does not specify a
+    // compression standard. Future versions of the standard remove this feature and repurpose this
+    // bit for other features. Since there is no way to know how to handle the remaining tag data,
     // return an unsupported error.
     if major_version == 2 && (flags & 0x40) != 0 {
         return unsupported_error("ID3v2.2 compression is not supported");
@@ -178,7 +178,7 @@ fn read_id3v2p3_extended_header<B: ByteStream>(reader: &mut B) -> Result<Extende
 /// Read the extended header of an ID3v2.4 tag.
 fn read_id3v2p4_extended_header<B: ByteStream>(reader: &mut B) -> Result<ExtendedHeader> {
     let _size = read_syncsafe_leq32(reader, 28)?;
-    
+
     if reader.read_u8()? != 1 {
         return decode_error("extended flags should have a length of 1");
     }
@@ -285,9 +285,9 @@ fn read_id3v2_body<B: ByteStream + FiniteStream>(
     }
 
     let min_frame_size = match header.major_version {
-        2     => 6,
+        2 => 6,
         3 | 4 => 10,
-        _     => unreachable!(),
+        _ => unreachable!(),
     };
 
     loop {
@@ -305,15 +305,17 @@ fn read_id3v2_body<B: ByteStream + FiniteStream>(
             // A frame was parsed into a tag, add it to the tag collection.
             FrameResult::Tag(tag) => {
                 metadata.add_tag(tag);
-            },
+            }
             // A frame was parsed into multiple tags, add them all to the tag collection.
             FrameResult::MultipleTags(multi_tags) => {
-                for tag in multi_tags { metadata.add_tag(tag); }
-            },
+                for tag in multi_tags {
+                    metadata.add_tag(tag);
+                }
+            }
             // An unknown frame was encountered, just ignore it.
             FrameResult::UnsupportedFrame(ref id) => {
                 info!("Unsupported frame {}.", id);
-            },
+            }
         }
 
         // Read frames until there is not enough bytes available in the ID3v2 tag for another frame.
@@ -330,16 +332,16 @@ pub fn read_id3v2<B: ByteStream>(reader: &mut B, metadata: &mut MetadataBuilder)
     let header = read_id3v2_header(reader)?;
 
     // The header specified the byte length of the contents of the ID3v2 tag (excluding the header),
-    // use a scoped reader to ensure we don't exceed that length, and to determine if there are no 
+    // use a scoped reader to ensure we don't exceed that length, and to determine if there are no
     // more frames left to parse.
     let scoped = ScopedStream::new(reader, u64::from(header.size));
 
-    // If the unsynchronisation flag is set in the header, all tag data must be passed through the 
+    // If the unsynchronisation flag is set in the header, all tag data must be passed through the
     // unsynchronisation decoder before being read for verions < 4 of ID3v2.
     if header.unsynchronisation && header.major_version < 4 {
         read_id3v2_body(UnsyncStream::new(scoped), &header, metadata)
     }
-    // Otherwise, read the data as-is. Individual frames may be unsynchronised for major versions 
+    // Otherwise, read the data as-is. Individual frames may be unsynchronised for major versions
     // >= 4.
     else {
         read_id3v2_body(scoped, &header, metadata)
@@ -374,14 +376,13 @@ pub mod util {
             _ => None,
         }
     }
-
 }
 
 pub struct Id3v2Reader;
 
 impl QueryDescriptor for Id3v2Reader {
     fn query() -> &'static [Descriptor] {
-        &[ support_metadata!("id3v2", "ID3v2", &[], &[], &[ b"ID3" ]) ]
+        &[support_metadata!("id3v2", "ID3v2", &[], &[], &[b"ID3"])]
     }
 
     fn score(_context: &[u8]) -> u8 {
@@ -391,7 +392,7 @@ impl QueryDescriptor for Id3v2Reader {
 
 impl MetadataReader for Id3v2Reader {
     fn new(_options: &MetadataOptions) -> Self {
-        Id3v2Reader { }
+        Id3v2Reader {}
     }
 
     fn read_all(&mut self, reader: &mut MediaSourceStream) -> Result<Metadata> {

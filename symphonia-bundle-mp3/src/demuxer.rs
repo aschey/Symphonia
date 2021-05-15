@@ -8,7 +8,7 @@
 use symphonia_core::support_format;
 
 use symphonia_core::codecs::{CodecParameters, CODEC_TYPE_MP3};
-use symphonia_core::errors::{Result, SeekErrorKind, seek_error};
+use symphonia_core::errors::{seek_error, Result, SeekErrorKind};
 use symphonia_core::formats::prelude::*;
 use symphonia_core::io::*;
 use symphonia_core::meta::MetadataQueue;
@@ -18,7 +18,7 @@ use std::io::{Seek, SeekFrom};
 
 use log::debug;
 
-use super::{header, common::SAMPLES_PER_GRANULE};
+use super::{common::SAMPLES_PER_GRANULE, header};
 
 /// MPEG1 and MPEG2 audio frame reader.
 ///
@@ -39,13 +39,17 @@ impl QueryDescriptor for Mp3Reader {
             support_format!(
                 "mp3",
                 "MPEG Audio Layer 3 Native",
-                &[ "mp3" ],
-                &[ "audio/mp3" ],
+                &["mp3"],
+                &["audio/mp3"],
                 &[
-                    &[ 0xff, 0xfa ], &[ 0xff, 0xfb ], // MPEG 1
-                    &[ 0xff, 0xf2 ], &[ 0xff, 0xf3 ], // MPEG 2
-                    &[ 0xff, 0xe2 ], &[ 0xff, 0xe3 ], // MPEG 2.5
-                ]),
+                    &[0xff, 0xfa],
+                    &[0xff, 0xfb], // MPEG 1
+                    &[0xff, 0xf2],
+                    &[0xff, 0xf3], // MPEG 2
+                    &[0xff, 0xe2],
+                    &[0xff, 0xe3], // MPEG 2.5
+                ]
+            ),
         ]
     }
 
@@ -55,7 +59,6 @@ impl QueryDescriptor for Mp3Reader {
 }
 
 impl FormatReader for Mp3Reader {
-
     fn try_new(mut source: MediaSourceStream, _options: &FormatOptions) -> Result<Self> {
         // Try to parse the header of the first MPEG frame.
         let header = header::parse_frame_header(source.read_be_u32()?)?;
@@ -63,9 +66,10 @@ impl FormatReader for Mp3Reader {
         // Use the header to populate the codec parameters.
         let mut params = CodecParameters::new();
 
-        params.for_codec(CODEC_TYPE_MP3)
-              .with_sample_rate(header.sample_rate)
-              .with_channels(header.channel_mode.channels());
+        params
+            .for_codec(CODEC_TYPE_MP3)
+            .with_sample_rate(header.sample_rate)
+            .with_channels(header.channel_mode.channels());
 
         // Rewind back to the start of the frame.
         source.rewind(std::mem::size_of::<u32>());
@@ -74,7 +78,7 @@ impl FormatReader for Mp3Reader {
 
         Ok(Mp3Reader {
             reader: source,
-            streams: vec![ Stream::new(0, params) ],
+            streams: vec![Stream::new(0, params)],
             cues: Vec::new(),
             metadata: Default::default(),
             first_frame_pos: first_frame_offset,
@@ -101,7 +105,12 @@ impl FormatReader for Mp3Reader {
 
         self.next_packet_ts += duration;
 
-        Ok(Packet::new_from_boxed_slice(0, ts, duration, packet_buf.into_boxed_slice()))
+        Ok(Packet::new_from_boxed_slice(
+            0,
+            ts,
+            duration,
+            packet_buf.into_boxed_slice(),
+        ))
     }
 
     fn metadata(&self) -> &MetadataQueue {
@@ -127,8 +136,7 @@ impl FormatReader for Mp3Reader {
                 // known, the seek cannot be completed.
                 if let Some(sample_rate) = self.streams[0].codec_params.sample_rate {
                     TimeBase::new(1, sample_rate).calc_timestamp(time)
-                }
-                else {
+                } else {
                     return seek_error(SeekErrorKind::Unseekable);
                 }
             }
@@ -148,9 +156,8 @@ impl FormatReader for Mp3Reader {
                 if seeked_pos != self.first_frame_pos {
                     return seek_error(SeekErrorKind::Unseekable);
                 }
-            }
-            else {
-                return seek_error(SeekErrorKind::ForwardOnly)
+            } else {
+                return seek_error(SeekErrorKind::ForwardOnly);
             }
 
             // Successfuly seeked to the start of the stream, reset the next packet timestamp.
@@ -185,11 +192,15 @@ impl FormatReader for Mp3Reader {
             self.next_packet_ts += duration;
         }
 
-        debug!("seeked to ts={} (delta={})",
+        debug!(
+            "seeked to ts={} (delta={})",
             self.next_packet_ts,
-            desired_ts as i64 - self.next_packet_ts as i64);
+            desired_ts as i64 - self.next_packet_ts as i64
+        );
 
-        Ok(SeekTo::TimeStamp { ts: self.next_packet_ts, stream: 0 })
+        Ok(SeekTo::TimeStamp {
+            ts: self.next_packet_ts,
+            stream: 0,
+        })
     }
-
 }

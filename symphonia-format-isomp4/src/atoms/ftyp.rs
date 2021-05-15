@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use symphonia_core::errors::{Result, decode_error};
+use symphonia_core::errors::{decode_error, Result};
 use symphonia_core::io::ByteStream;
 
 use crate::atoms::{Atom, AtomHeader};
@@ -26,7 +26,7 @@ impl Atom for FtypAtom {
         if header.data_len & 0x3 != 0 {
             return decode_error("invalid ftyp data length");
         }
-    
+
         // Major
         let major = FourCc::new(reader.read_quad_bytes()?);
 
@@ -43,11 +43,15 @@ impl Atom for FtypAtom {
             compatible.push(FourCc::new(brand));
         }
 
-        Ok(FtypAtom { header, major, minor, compatible })
+        Ok(FtypAtom {
+            header,
+            major,
+            minor,
+            compatible,
+        })
     }
 
     fn header(&self) -> AtomHeader {
         self.header
     }
-    
 }

@@ -44,7 +44,7 @@ impl MediaSource for std::fs::File {
         // metadata() follows symlinks.
         match self.metadata() {
             Ok(metadata) => metadata.is_file(),
-            _ => false
+            _ => false,
         }
     }
 
@@ -122,14 +122,16 @@ impl<R: io::Read> io::Read for ReadOnlySource<R> {
 
 impl<R: io::Read> io::Seek for ReadOnlySource<R> {
     fn seek(&mut self, _: io::SeekFrom) -> io::Result<u64> {
-        Err(io::Error::new(io::ErrorKind::Other, "source does not support seeking"))
+        Err(io::Error::new(
+            io::ErrorKind::Other,
+            "source does not support seeking",
+        ))
     }
 }
 
 /// A `ByteStream` provides functions to read bytes and interpret them as little- or big-endian
 /// unsigned integers or floating-point values of standard widths.
 pub trait ByteStream {
-
     /// Reads a single byte from the stream and returns it or an error.
     fn read_byte(&mut self) -> io::Result<u8>;
 
@@ -277,9 +279,10 @@ pub trait ByteStream {
     /// Reads bytes from a stream into a supplied buffer until a byte patter is matched on an
     /// aligned byte boundary. Returns a mutable slice to the valid region of the provided buffer.
     fn scan_bytes_aligned<'a>(
-        &mut self, pattern: &[u8],
+        &mut self,
+        pattern: &[u8],
         align: usize,
-        buf: &'a mut [u8]
+        buf: &'a mut [u8],
     ) -> io::Result<&'a mut [u8]>;
 
     /// Ignores the specified number of bytes from the stream or returns an error.
@@ -325,7 +328,7 @@ impl<'b, B: ByteStream> ByteStream for &'b mut B {
         &mut self,
         pattern: &[u8],
         align: usize,
-        buf: &'a mut [u8]
+        buf: &'a mut [u8],
     ) -> io::Result<&'a mut [u8]> {
         (*self).scan_bytes_aligned(pattern, align, buf)
     }

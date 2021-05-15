@@ -7,17 +7,17 @@
 
 use std::collections::BTreeMap;
 
-use symphonia_core::support_format;
-use symphonia_core::errors::{Result, unsupported_error};
+use symphonia_core::errors::{unsupported_error, Result};
 use symphonia_core::formats::prelude::*;
 use symphonia_core::io::MediaSourceStream;
 use symphonia_core::meta::MetadataQueue;
 use symphonia_core::probe::{Descriptor, Instantiate, QueryDescriptor};
+use symphonia_core::support_format;
 
 use log::info;
 
-use super::physical::PhysicalStream;
 use super::mappings;
+use super::physical::PhysicalStream;
 
 /// Ogg demultiplexer.
 ///
@@ -33,15 +33,13 @@ pub struct OggReader {
 
 impl QueryDescriptor for OggReader {
     fn query() -> &'static [Descriptor] {
-        &[
-            support_format!(
-                "ogg",
-                "OGG",
-                &[ "ogg", "ogv", "oga", "ogx", "ogm", "spx", "opus" ],
-                &[ "video/ogg", "audio/ogg", "application/ogg" ],
-                &[ b"OggS" ]
-            ),
-        ]
+        &[support_format!(
+            "ogg",
+            "OGG",
+            &["ogg", "ogv", "oga", "ogx", "ogm", "spx", "opus"],
+            &["video/ogg", "audio/ogg", "application/ogg"],
+            &[b"OggS"]
+        )]
     }
 
     fn score(_context: &[u8]) -> u8 {
@@ -50,7 +48,6 @@ impl QueryDescriptor for OggReader {
 }
 
 impl FormatReader for OggReader {
-
     fn try_new(mut source: MediaSourceStream, _options: &FormatOptions) -> Result<Self> {
         let mut physical_stream: PhysicalStream = Default::default();
 
@@ -81,7 +78,7 @@ impl FormatReader for OggReader {
                 // Add the stream.
                 streams.push(Stream::new(packet.serial, mapper.codec().clone()));
                 mappers.insert(packet.serial, mapper);
-                
+
                 info!("added stream: serial={:#x}", packet.serial);
             }
         }
@@ -101,7 +98,7 @@ impl FormatReader for OggReader {
                 match mapper.map_packet(&packet.data)? {
                     mappings::MapResult::Metadata(revision) => metadata.push(revision),
                     mappings::MapResult::Unknown => (),
-                    _ => break
+                    _ => break,
                 }
             }
 
@@ -131,11 +128,16 @@ impl FormatReader for OggReader {
                 // Determine what to do with the packet.
                 match mapper.map_packet(&packet.data)? {
                     mappings::MapResult::Bitstream => {
-                        return Ok(Packet::new_from_boxed_slice(packet.serial, 0, 0, packet.data));
-                    },
+                        return Ok(Packet::new_from_boxed_slice(
+                            packet.serial,
+                            0,
+                            0,
+                            packet.data,
+                        ));
+                    }
                     mappings::MapResult::Metadata(metadata) => {
                         self.metadata.push(metadata);
-                    },
+                    }
                     _ => {
                         info!("ignoring packet for serial={:#x}", packet.serial);
                     }
@@ -159,6 +161,4 @@ impl FormatReader for OggReader {
     fn seek(&mut self, _to: SeekTo) -> Result<SeekedTo> {
         unsupported_error("ogg seeking unsupported")
     }
-
 }
-

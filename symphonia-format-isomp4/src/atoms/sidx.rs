@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use symphonia_core::errors::{Result, decode_error};
+use symphonia_core::errors::{decode_error, Result};
 use symphonia_core::io::ByteStream;
 
 use crate::atoms::{Atom, AtomHeader};
@@ -53,8 +53,11 @@ impl Atom for SidxAtom {
         let timescale = reader.read_be_u32()?;
 
         let (earliest_pts, first_offset) = match version {
-            0 => ( u64::from(reader.read_be_u32()?), anchor + u64::from(reader.read_be_u32()?) ),
-            1 => ( reader.read_be_u64()?, anchor + reader.read_be_u64()? ),
+            0 => (
+                u64::from(reader.read_be_u32()?),
+                anchor + u64::from(reader.read_be_u32()?),
+            ),
+            1 => (reader.read_be_u64()?, anchor + reader.read_be_u64()?),
             _ => {
                 return decode_error("invalid sidx version");
             }
@@ -71,7 +74,7 @@ impl Atom for SidxAtom {
 
             let reference_type = match (reference & 0x8000_0000) != 0 {
                 false => ReferenceType::Media,
-                true  => ReferenceType::Segment,
+                true => ReferenceType::Segment,
             };
 
             let reference_size = reference & !0x8000_0000;

@@ -61,8 +61,8 @@ impl Time {
         }
 
         let seconds = (Time::SECONDS_PER_HOUR * u64::from(h))
-                            + (Time::SECONDS_PER_MINUTE * u64::from(m))
-                            + u64::from(s);
+            + (Time::SECONDS_PER_MINUTE * u64::from(m))
+            + u64::from(s);
 
         let frac = Time::NANOSECONDS_PER_SECOND_INV * f64::from(ns);
 
@@ -71,27 +71,34 @@ impl Time {
 }
 
 impl From<u8> for Time {
-    fn from(seconds: u8) -> Self { Time::new(u64::from(seconds), 0.0) }
+    fn from(seconds: u8) -> Self {
+        Time::new(u64::from(seconds), 0.0)
+    }
 }
 
 impl From<u16> for Time {
-    fn from(seconds: u16) -> Self { Time::new(u64::from(seconds), 0.0) }
+    fn from(seconds: u16) -> Self {
+        Time::new(u64::from(seconds), 0.0)
+    }
 }
 
 impl From<u32> for Time {
-    fn from(seconds: u32) -> Self { Time::new(u64::from(seconds), 0.0) }
+    fn from(seconds: u32) -> Self {
+        Time::new(u64::from(seconds), 0.0)
+    }
 }
 
 impl From<u64> for Time {
-    fn from(seconds: u64) -> Self { Time::new(seconds, 0.0) }
+    fn from(seconds: u64) -> Self {
+        Time::new(seconds, 0.0)
+    }
 }
 
 impl From<f32> for Time {
     fn from(seconds: f32) -> Self {
         if seconds >= 0.0 {
             Time::new(seconds.trunc() as u64, f64::from(seconds.fract()))
-        }
-        else {
+        } else {
             Time::new(0, 0.0)
         }
     }
@@ -101,8 +108,7 @@ impl From<f64> for Time {
     fn from(seconds: f64) -> Self {
         if seconds >= 0.0 {
             Time::new(seconds.trunc() as u64, seconds.fract())
-        }
-        else {
+        } else {
             Time::new(0, 0.0)
         }
     }
@@ -120,7 +126,7 @@ pub struct TimeBase {
 impl TimeBase {
     /// Creates a new `TimeBase`. Panics if either the numerator or denominator is 0.
     pub fn new(numer: u32, denom: u32) -> Self {
-        if numer == 0 || denom == 0{
+        if numer == 0 || denom == 0 {
             panic!("TimeBase cannot have 0 numerator or denominator");
         }
 
@@ -130,7 +136,10 @@ impl TimeBase {
     /// Accurately calculates a `Time` using the `TimeBase` and the provided `TimeStamp`. On
     /// overflow, the seconds field of `Time` wraps.
     pub fn calc_time(&self, ts: TimeStamp) -> Time {
-        assert!(self.numer > 0 && self.denom > 0, "TimeBase numerator or denominator are 0.");
+        assert!(
+            self.numer > 0 && self.denom > 0,
+            "TimeBase numerator or denominator are 0."
+        );
 
         // The dividend requires up-to 96-bits (32-bit timebase numerator * 64-bit timestamp).
         let dividend = u128::from(ts) * u128::from(self.numer);
@@ -145,8 +154,7 @@ impl TimeBase {
             let seconds = (dividend as f64) / f64::from(self.denom);
 
             Time::new(seconds.trunc() as u64, seconds.fract())
-        }
-        else {
+        } else {
             // If the dividend requires more than 52 bits, calculate the integer portion using
             // integer arithmetic, then calculate the fractional part separately.
             let quotient = dividend / u128::from(self.denom);
@@ -167,8 +175,14 @@ impl TimeBase {
     /// Accurately calculates a `TimeStamp` from the given `Time` using the `TimeBase` as the
     /// conversion factor. On overflow, the `TimeStamp` wraps.
     pub fn calc_timestamp(&self, time: Time) -> TimeStamp {
-        assert!(self.numer > 0 && self.denom > 0, "TimeBase numerator or denominator are 0.");
-        assert!(time.frac >= 0.0 && time.frac < 1.0, "Invalid range for Time fractional part.");
+        assert!(
+            self.numer > 0 && self.denom > 0,
+            "TimeBase numerator or denominator are 0."
+        );
+        assert!(
+            time.frac >= 0.0 && time.frac < 1.0,
+            "Invalid range for Time fractional part."
+        );
 
         // The dividing factor.
         let k = 1.0 / f64::from(self.numer);
@@ -183,15 +197,14 @@ impl TimeBase {
         let a = if product > (1 << 52) {
             // Split the 96-bit product into 48-bit halves.
             let u = ((product & !0xffff_ffff_ffff) >> 48) as u64;
-            let l = ((product &  0xffff_ffff_ffff) >>  0) as u64;
+            let l = ((product & 0xffff_ffff_ffff) >> 0) as u64;
 
             let uk = (u as f64) * k;
             let ul = (l as f64) * k;
 
             // Add the upper and lower halves.
             ((uk as u64) << 48).wrapping_add(ul as u64)
-        }
-        else {
+        } else {
             ((product as f64) * k) as u64
         };
 
@@ -200,7 +213,6 @@ impl TimeBase {
 
         a.wrapping_add(b)
     }
-
 }
 
 impl From<TimeBase> for f64 {
@@ -220,21 +232,40 @@ mod tests {
 
         assert_eq!(tb1.calc_time(0), Time::new(0, 0.0));
         assert_eq!(tb1.calc_time(12_345), Time::new(38, 0.578125));
-        assert_eq!(tb1.calc_time(0x0f_ffff_ffff_ffff), Time::new(14_073_748_835_532, 0.796875));
-        assert_eq!(tb1.calc_time(0x10_0000_0000_0001), Time::new(14_073_748_835_532, 0.803125));
-        assert_eq!(tb1.calc_time(u64::MAX), Time::new(57_646_075_230_342_348, 0.796875));
+        assert_eq!(
+            tb1.calc_time(0x0f_ffff_ffff_ffff),
+            Time::new(14_073_748_835_532, 0.796875)
+        );
+        assert_eq!(
+            tb1.calc_time(0x10_0000_0000_0001),
+            Time::new(14_073_748_835_532, 0.803125)
+        );
+        assert_eq!(
+            tb1.calc_time(u64::MAX),
+            Time::new(57_646_075_230_342_348, 0.796875)
+        );
 
         // Verify overflow wraps seconds
         let tb2 = TimeBase::new(320, 1);
-        assert_eq!(tb2.calc_time(u64::MAX), Time::new(18_446_744_073_709_551_296, 0.0));
+        assert_eq!(
+            tb2.calc_time(u64::MAX),
+            Time::new(18_446_744_073_709_551_296, 0.0)
+        );
 
         // Verify accuracy of time -> timestamp
         assert_eq!(tb1.calc_timestamp(Time::new(0, 0.0)), 0);
         assert_eq!(tb1.calc_timestamp(Time::new(38, 0.578125)), 12_345);
-        assert_eq!(tb1.calc_timestamp(Time::new(14_073_748_835_532, 0.796875)), 0x0f_ffff_ffff_ffff);
-        assert_eq!(tb1.calc_timestamp(Time::new(14_073_748_835_532, 0.803125)), 0x10_0000_0000_0001);
-        assert_eq!(tb1.calc_timestamp(Time::new(57_646_075_230_342_348, 0.796875)), u64::MAX);
-
+        assert_eq!(
+            tb1.calc_timestamp(Time::new(14_073_748_835_532, 0.796875)),
+            0x0f_ffff_ffff_ffff
+        );
+        assert_eq!(
+            tb1.calc_timestamp(Time::new(14_073_748_835_532, 0.803125)),
+            0x10_0000_0000_0001
+        );
+        assert_eq!(
+            tb1.calc_timestamp(Time::new(57_646_075_230_342_348, 0.796875)),
+            u64::MAX
+        );
     }
-
 }

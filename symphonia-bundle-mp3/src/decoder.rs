@@ -5,10 +5,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use symphonia_core::audio::{AudioBuffer, AudioBufferRef, AsAudioBufferRef, Signal};
+use symphonia_core::audio::{AsAudioBufferRef, AudioBuffer, AudioBufferRef, Signal};
 use symphonia_core::codecs::CODEC_TYPE_MP3;
-use symphonia_core::codecs::{CodecParameters, CodecDescriptor, Decoder, DecoderOptions};
-use symphonia_core::errors::{Result, unsupported_error};
+use symphonia_core::codecs::{CodecDescriptor, CodecParameters, Decoder, DecoderOptions};
+use symphonia_core::errors::{unsupported_error, Result};
 use symphonia_core::formats::Packet;
 use symphonia_core::support_codec;
 
@@ -22,7 +22,6 @@ pub struct Mp3Decoder {
 }
 
 impl Decoder for Mp3Decoder {
-
     fn try_new(params: &CodecParameters, _: &DecoderOptions) -> Result<Self> {
         Ok(Mp3Decoder {
             params: params.clone(),
@@ -61,14 +60,12 @@ impl Decoder for Mp3Decoder {
         match header.layer {
             MpegLayer::Layer3 => {
                 layer3::decode_frame(&mut reader, &header, &mut self.state, &mut self.buf)?;
-            },
+            }
             _ => return unsupported_error("unsupported MPEG layer"),
         }
 
         Ok(self.buf.as_audio_buffer_ref())
     }
 
-    fn close(&mut self) {
-
-    }
+    fn close(&mut self) {}
 }

@@ -5,15 +5,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use super::{Mapper, MapResult};
+use super::{MapResult, Mapper};
 
 use symphonia_core::codecs::{CodecParameters, CODEC_TYPE_FLAC};
-use symphonia_core::errors::{Result, decode_error};
-use symphonia_core::meta::MetadataBuilder;
+use symphonia_core::errors::{decode_error, Result};
 use symphonia_core::io::{BufStream, ByteStream};
+use symphonia_core::meta::MetadataBuilder;
 
-use symphonia_utils_xiph::flac::metadata::{MetadataBlockHeader, MetadataBlockType, StreamInfo};
 use symphonia_utils_xiph::flac::metadata::{read_comment_block, read_picture_block};
+use symphonia_utils_xiph::flac::metadata::{MetadataBlockHeader, MetadataBlockType, StreamInfo};
 
 /// The expected size of the first FLAC header packet.
 const OGG_FLAC_HEADER_PACKET_SIZE: usize = 51;
@@ -37,30 +37,30 @@ pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper>>> {
     }
 
     let mut reader = BufStream::new(&buf);
-    
+
     // The first byte indicates the packet type and must be 0x7f.
     if reader.read_u8()? != OGG_FLAC_PACKET_TYPE {
         return Ok(None);
     }
-    
+
     // Next, the OGG FLAC signature, in ASCII, must be "FLAC".
     if reader.read_quad_bytes()? != OGG_FLAC_HEADER_SIGNATURE {
         return Ok(None);
     }
-    
+
     // Next, a one-byte binary major version number for the mapping, only version 1 is supported.
     if reader.read_u8()? != OGG_FLAC_MAPPING_MAJOR_VERSION {
         return Ok(None);
     }
-    
+
     // Next, a one-byte minor version number for the mapping. This is ignored because we support all
     // version 1 features.
     let _minor = reader.read_u8()?;
-    
+
     // Next, a two-byte, big-endian number signifying the number of header (non-audio) packets, not
     // including the identification packet. This number may be 0 to signify it is unknown.
     let _ = reader.read_be_u16()?;
-    
+
     // Last, the four-byte ASCII native FLAC signature "fLaC".
     if reader.read_quad_bytes()? != FLAC_SIGNATURE {
         return Ok(None);
@@ -92,9 +92,7 @@ pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper>>> {
     }
 
     // Instantiate the FLAC mapper.
-    let mapper = Box::new(FlacMapper {
-        codec_params,
-    });
+    let mapper = Box::new(FlacMapper { codec_params });
 
     Ok(Some(mapper))
 }
@@ -104,7 +102,6 @@ struct FlacMapper {
 }
 
 impl Mapper for FlacMapper {
-
     fn codec(&self) -> &CodecParameters {
         &self.codec_params
     }
@@ -114,12 +111,10 @@ impl Mapper for FlacMapper {
         if buf[0] == 0xff {
             // A packet-type of 0xff is a bitstream packet.
             Ok(MapResult::Bitstream)
-        }
-        else if buf[0] == 0x00 || buf[0] == 0x80 {
+        } else if buf[0] == 0x00 || buf[0] == 0x80 {
             // Packet types 0x00 and 0x80 are invalid in the OGG mapping.
             decode_error("invalid packet type")
-        }
-        else {
+        } else {
             // Packet types in the range 0x01 to 0x7f, and 0x81 to 0xfe are metadata blocks.
             let mut reader = BufStream::new(&buf);
             let header = MetadataBlockHeader::read(&mut reader)?;
@@ -139,9 +134,8 @@ impl Mapper for FlacMapper {
 
                     Ok(MapResult::Metadata(builder.metadata()))
                 }
-                _ => Ok(MapResult::Unknown)
+                _ => Ok(MapResult::Unknown),
             }
         }
     }
-
 }

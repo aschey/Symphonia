@@ -7,7 +7,6 @@
 
 #![warn(rust_2018_idioms)]
 #![forbid(unsafe_code)]
-
 // Justification: fields on DecoderOptions and FormatOptions may change at any time, but symphonia-play
 // doesn't want to be updated every time those fields change, therefore always fill in the remaining
 // fields with default values.
@@ -17,15 +16,15 @@ use std::fs::File;
 use std::path::Path;
 
 use symphonia;
-use symphonia::core::errors::{Result, Error};
 use symphonia::core::codecs::DecoderOptions;
-use symphonia::core::formats::{Cue, FormatReader, FormatOptions, SeekTo, Stream};
+use symphonia::core::errors::{Error, Result};
+use symphonia::core::formats::{Cue, FormatOptions, FormatReader, SeekTo, Stream};
+use symphonia::core::io::{MediaSource, MediaSourceStream, ReadOnlySource};
 use symphonia::core::meta::{ColorMode, MetadataOptions, Tag, Value, Visual};
-use symphonia::core::io::{MediaSourceStream, MediaSource, ReadOnlySource};
 use symphonia::core::probe::{Hint, ProbeResult};
 use symphonia::core::units::{Duration, Time};
 
-use clap::{Arg, App};
+use clap::{App, Arg};
 use log::{error, info, warn};
 use pretty_env_logger;
 
@@ -35,47 +34,54 @@ fn main() {
     pretty_env_logger::init();
 
     let matches = App::new("Symphonia Play")
-                        .version("1.0")
-                        .author("Philip Deljanov <philip.deljanov@gmail.com>")
-                        .about("Play audio with Symphonia")
-                        .arg(Arg::with_name("seek")
-                            .long("seek")
-                            .short("-s")
-                            .value_name("TIME")
-                            .help("Seek to the given time in seconds")
-                            .conflicts_with_all(
-                                &[
-                                    "verify",
-                                    "decode-only",
-                                    "verify-only",
-                                    "probe-only"
-                                ]
-                            ))
-                        .arg(Arg::with_name("decode-only")
-                            .long("decode-only")
-                            .help("Decode, but do not play the audio")
-                            .conflicts_with_all(&[ "probe-only", "verify-only", "verify" ]))
-                        .arg(Arg::with_name("probe-only")
-                            .long("probe-only")
-                            .help("Only probe the input for metadata")
-                            .conflicts_with_all(&[ "decode-only", "verify-only" ]))
-                        .arg(Arg::with_name("verify-only")
-                            .long("verify-only")
-                            .help("Verify the decoded audio is valid, but do not play the audio")
-                            .conflicts_with_all(&[ "verify" ]))
-                        .arg(Arg::with_name("verify")
-                            .long("verify")
-                            .short("-V")
-                            .help("Verify the decoded audio is valid during playback"))
-                       .arg(Arg::with_name("verbose")
-                            .short("v")
-                            .multiple(true)
-                            .help("Sets the level of verbosity"))
-                        .arg(Arg::with_name("INPUT")
-                            .help("The input file path, or specify - to use standard input")
-                            .required(true)
-                            .index(1))
-                        .get_matches();
+        .version("1.0")
+        .author("Philip Deljanov <philip.deljanov@gmail.com>")
+        .about("Play audio with Symphonia")
+        .arg(
+            Arg::with_name("seek")
+                .long("seek")
+                .short("-s")
+                .value_name("TIME")
+                .help("Seek to the given time in seconds")
+                .conflicts_with_all(&["verify", "decode-only", "verify-only", "probe-only"]),
+        )
+        .arg(
+            Arg::with_name("decode-only")
+                .long("decode-only")
+                .help("Decode, but do not play the audio")
+                .conflicts_with_all(&["probe-only", "verify-only", "verify"]),
+        )
+        .arg(
+            Arg::with_name("probe-only")
+                .long("probe-only")
+                .help("Only probe the input for metadata")
+                .conflicts_with_all(&["decode-only", "verify-only"]),
+        )
+        .arg(
+            Arg::with_name("verify-only")
+                .long("verify-only")
+                .help("Verify the decoded audio is valid, but do not play the audio")
+                .conflicts_with_all(&["verify"]),
+        )
+        .arg(
+            Arg::with_name("verify")
+                .long("verify")
+                .short("-V")
+                .help("Verify the decoded audio is valid during playback"),
+        )
+        .arg(
+            Arg::with_name("verbose")
+                .short("v")
+                .multiple(true)
+                .help("Sets the level of verbosity"),
+        )
+        .arg(
+            Arg::with_name("INPUT")
+                .help("The input file path, or specify - to use standard input")
+                .required(true)
+                .index(1),
+        )
+        .get_matches();
 
     let path_str = matches.value_of("INPUT").unwrap();
 
@@ -85,8 +91,7 @@ fn main() {
     // If the path string is '-' then read from standard input.
     let source = if path_str == "-" {
         Box::new(ReadOnlySource::new(std::io::stdin())) as Box<dyn MediaSource>
-    }
-    else {
+    } else {
         // Othwerise, get a Path from the path string.
         let path = Path::new(path_str);
 
@@ -110,28 +115,41 @@ fn main() {
     // Probe the media source stream for metadata and get the format reader.
     match symphonia::default::get_probe().format(&hint, mss, &format_opts, &metadata_opts) {
         Ok(mut probed) => {
-
             let result = if matches.is_present("verify-only") {
                 // Verify-only mode decodes and verifies the audio, but does not play it.
-                decode_only(probed.format, &DecoderOptions { verify: true, ..Default::default() })
-            }
-            else if matches.is_present("decode-only") {
+                decode_only(
+                    probed.format,
+                    &DecoderOptions {
+                        verify: true,
+                        ..Default::default()
+                    },
+                )
+            } else if matches.is_present("decode-only") {
                 // Decode-only mode decodes the audio, but does not play or verify it.
-                decode_only(probed.format, &DecoderOptions { verify: false, ..Default::default() })
-            }
-            else if matches.is_present("probe-only") {
+                decode_only(
+                    probed.format,
+                    &DecoderOptions {
+                        verify: false,
+                        ..Default::default()
+                    },
+                )
+            } else if matches.is_present("probe-only") {
                 // Probe-only mode only prints information about the format, streams, metadata, etc.
                 pretty_print_format(path_str, &probed);
                 Ok(())
-            }
-            else {
+            } else {
                 // Playback mode.
                 pretty_print_format(path_str, &probed);
 
                 // Seek to the desired timestamp if requested.
                 if let Some(seek_value) = matches.value_of("seek") {
                     let pos = seek_value.parse::<f64>().unwrap_or(0.0);
-                    probed.format.seek(SeekTo::Time{ time: Time::from(pos) }).unwrap();
+                    probed
+                        .format
+                        .seek(SeekTo::Time {
+                            time: Time::from(pos),
+                        })
+                        .unwrap();
                 }
 
                 // Set the decoder options.
@@ -162,7 +180,8 @@ fn decode_only(mut reader: Box<dyn FormatReader>, decode_options: &DecoderOption
     let stream_id = stream.id;
 
     // Create a decoder for the stream.
-    let mut decoder = symphonia::default::get_codecs().make(&stream.codec_params, &decode_options)?;
+    let mut decoder =
+        symphonia::default::get_codecs().make(&stream.codec_params, &decode_options)?;
 
     // Decode all packets, ignoring all decode errors.
     let result = loop {
@@ -197,7 +216,8 @@ fn play(mut reader: Box<dyn FormatReader>, decode_options: &DecoderOptions) -> R
     let stream_id = stream.id;
 
     // Create a decoder for the stream.
-    let mut decoder = symphonia::default::get_codecs().make(&stream.codec_params, &decode_options)?;
+    let mut decoder =
+        symphonia::default::get_codecs().make(&stream.codec_params, &decode_options)?;
 
     // Decode and play the packets belonging to the selected stream.
     loop {
@@ -265,8 +285,7 @@ fn pretty_print_format(path: &str, probed: &ProbeResult) {
             info!("tags that are part of the container format are preferentially printed.");
             info!("not printing additional tags that were found while probing.");
         }
-    }
-    else if let Some(metadata) = probed.metadata.current() {
+    } else if let Some(metadata) = probed.metadata.current() {
         pretty_print_tags(metadata.tags());
         pretty_print_visuals(metadata.visuals());
     }
@@ -287,8 +306,7 @@ fn pretty_print_streams(streams: &[Stream]) {
 
             if let Some(codec) = symphonia::default::get_codecs().get_codec(params.codec) {
                 println!("{} ({})", codec.long_name, codec.short_name);
-            }
-            else {
+            } else {
                 println!("Unknown (#{})", params.codec);
             }
 
@@ -314,7 +332,6 @@ fn pretty_print_streams(streams: &[Stream]) {
             if let Some(language) = &stream.language {
                 println!("|          Language:        {}", language);
             }
-
         }
     }
 }
@@ -334,10 +351,20 @@ fn pretty_print_cues(cues: &[Cue]) {
 
                 for (tidx, tag) in cue.tags.iter().enumerate() {
                     if let Some(std_key) = tag.std_key {
-                        println!("{}", pretty_print_tag_item(tidx + 1, &format!("{:?}", std_key), &tag.value, 21));
-                    }
-                    else {
-                        println!("{}", pretty_print_tag_item(tidx + 1, &tag.key, &tag.value, 21));
+                        println!(
+                            "{}",
+                            pretty_print_tag_item(
+                                tidx + 1,
+                                &format!("{:?}", std_key),
+                                &tag.value,
+                                21
+                            )
+                        );
+                    } else {
+                        println!(
+                            "{}",
+                            pretty_print_tag_item(tidx + 1, &tag.key, &tag.value, 21)
+                        );
                     }
                 }
             }
@@ -347,15 +374,21 @@ fn pretty_print_cues(cues: &[Cue]) {
                 println!("|          Sub-Cues:");
 
                 for (ptidx, pt) in cue.points.iter().enumerate() {
-                    println!("|                      [{:0>2}] Offset:    {:?}", ptidx + 1, pt.start_offset_ts);
+                    println!(
+                        "|                      [{:0>2}] Offset:    {:?}",
+                        ptidx + 1,
+                        pt.start_offset_ts
+                    );
 
                     // Start the number of sub-cue tags, but don't print them.
                     if !pt.tags.is_empty() {
-                        println!("|                           Sub-Tags:  {} (not listed)", pt.tags.len());
+                        println!(
+                            "|                           Sub-Tags:  {} (not listed)",
+                            pt.tags.len()
+                        );
                     }
                 }
             }
-
         }
     }
 }
@@ -368,15 +401,18 @@ fn pretty_print_tags(tags: &[Tag]) {
         let mut idx = 1;
 
         // Print tags with a standard tag key first, these are the most common tags.
-        for tag in tags.iter().filter(| tag | tag.is_known()) {
+        for tag in tags.iter().filter(|tag| tag.is_known()) {
             if let Some(std_key) = tag.std_key {
-                println!("{}", pretty_print_tag_item(idx, &format!("{:?}", std_key), &tag.value, 4));
+                println!(
+                    "{}",
+                    pretty_print_tag_item(idx, &format!("{:?}", std_key), &tag.value, 4)
+                );
             }
             idx += 1;
         }
 
         // Print the remaining tags with keys truncated to 26 characters.
-        for tag in tags.iter().filter(| tag | !tag.is_known()) {
+        for tag in tags.iter().filter(|tag| !tag.is_known()) {
             println!("{}", pretty_print_tag_item(idx, &tag.key, &tag.value, 4));
             idx += 1;
         }
@@ -389,16 +425,17 @@ fn pretty_print_visuals(visuals: &[Visual]) {
         println!("| // Visuals //");
 
         for (idx, visual) in visuals.iter().enumerate() {
-
             if let Some(usage) = visual.usage {
                 println!("|     [{:0>2}] Usage:      {:?}", idx + 1, usage);
                 println!("|          Media Type: {}", visual.media_type);
-            }
-            else {
+            } else {
                 println!("|     [{:0>2}] Media Type: {}", idx + 1, visual.media_type);
             }
             if let Some(dimensions) = visual.dimensions {
-                println!("|          Dimensions: {} px x {} px", dimensions.width, dimensions.height);
+                println!(
+                    "|          Dimensions: {} px x {} px",
+                    dimensions.width, dimensions.height
+                );
             }
             if let Some(bpp) = visual.bits_per_pixel {
                 println!("|          Bits/Pixel: {}", bpp);
@@ -415,10 +452,15 @@ fn pretty_print_visuals(visuals: &[Visual]) {
 
             for (tidx, tag) in visual.tags.iter().enumerate() {
                 if let Some(std_key) = tag.std_key {
-                    println!("{}", pretty_print_tag_item(tidx + 1, &format!("{:?}", std_key), &tag.value, 21));
-                }
-                else {
-                    println!("{}", pretty_print_tag_item(tidx + 1, &tag.key, &tag.value, 21));
+                    println!(
+                        "{}",
+                        pretty_print_tag_item(tidx + 1, &format!("{:?}", std_key), &tag.value, 21)
+                    );
+                } else {
+                    println!(
+                        "{}",
+                        pretty_print_tag_item(tidx + 1, &tag.key, &tag.value, 21)
+                    );
                 }
             }
         }
@@ -428,7 +470,13 @@ fn pretty_print_visuals(visuals: &[Visual]) {
 fn pretty_print_tag_item(idx: usize, key: &str, value: &Value, indent: usize) -> String {
     let key_str = match key.len() {
         0..=28 => format!("| {:w$}[{:0>2}] {:<28} : ", "", idx, key, w = indent),
-        _ => format!("| {:w$}[{:0>2}] {:.<28} : ", "", idx, key.split_at(26).0, w = indent),
+        _ => format!(
+            "| {:w$}[{:0>2}] {:.<28} : ",
+            "",
+            idx,
+            key.split_at(26).0,
+            w = indent
+        ),
     };
 
     let line_prefix = format!("\n| {:w$} : ", "", w = indent + 4 + 28 + 1);

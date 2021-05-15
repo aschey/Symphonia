@@ -9,14 +9,14 @@ use std::cmp::min;
 use std::collections::VecDeque;
 
 use symphonia_core::checksum::Crc16Ansi;
-use symphonia_core::errors::{Result, Error};
+use symphonia_core::errors::{Error, Result};
 use symphonia_core::io::{BufStream, ByteStream, Monitor};
 use symphonia_core::util::bits;
 use symphonia_utils_xiph::flac::metadata::StreamInfo;
 
 use log::{error, trace, warn};
 
-use super::frame::{BlockSequence, FrameHeader, is_likely_frame_header, read_frame_header};
+use super::frame::{is_likely_frame_header, read_frame_header, BlockSequence, FrameHeader};
 
 #[inline(always)]
 fn round_pow2(value: usize, pow2: usize) -> usize {
@@ -71,8 +71,8 @@ impl PacketParser {
 
     /// The maximum buffer length possible.
     const MAX_BUF_LEN: usize = PacketParser::FLAC_MAX_FRAME_LEN
-                                + PacketParser::FLAC_MAX_FRAME_HEADER_LEN
-                                + PacketParser::BUF_PADDING;
+        + PacketParser::FLAC_MAX_FRAME_HEADER_LEN
+        + PacketParser::BUF_PADDING;
 
     // Frames:    [                           F0                          |   ..   ]
     //                                                                    :
@@ -97,9 +97,10 @@ impl PacketParser {
     fn buffer_data<B: ByteStream>(&mut self, reader: &mut B) -> Result<()> {
         // Calculate the average frame size.
         let avg_frame_size = ((self.frame_size_hist[0]
-                                + self.frame_size_hist[1]
-                                + self.frame_size_hist[2]
-                                + self.frame_size_hist[3]) / 4) as usize;
+            + self.frame_size_hist[1]
+            + self.frame_size_hist[2]
+            + self.frame_size_hist[3])
+            / 4) as usize;
 
         // Read average frame size bytes.
         let new_buf_write = self.buf_write + round_pow2(avg_frame_size, 4096);
@@ -107,10 +108,7 @@ impl PacketParser {
         if new_buf_write >= self.buf.len() - PacketParser::BUF_PADDING {
             // Grow buffer to 1.25x the average frame size, plus padding, rounded to the nearest
             // multiple of 4kB.
-            let new_size = round_pow2(
-                ((10 * new_buf_write) / 8) + PacketParser::BUF_PADDING,
-                4096
-            );
+            let new_size = round_pow2(((10 * new_buf_write) / 8) + PacketParser::BUF_PADDING, 4096);
 
             if new_size > PacketParser::MAX_BUF_LEN {
                 error!("buffer would exceed maximum size");
@@ -169,7 +167,8 @@ impl PacketParser {
                         return Ok(());
                     }
 
-                    let buf = &self.buf[pos + i + 1..pos + i + PacketParser::FLAC_MAX_FRAME_HEADER_LEN + 1];
+                    let buf = &self.buf
+                        [pos + i + 1..pos + i + PacketParser::FLAC_MAX_FRAME_HEADER_LEN + 1];
 
                     // If the header buffer passes a quick sanity check, then attempt to parse the
                     // frame header in its entirety.
@@ -181,7 +180,10 @@ impl PacketParser {
                             //     pos + i - 1
                             // );
 
-                            self.fragments.push_back(Fragment { pos: pos + i - 1, header });
+                            self.fragments.push_back(Fragment {
+                                pos: pos + i - 1,
+                                header,
+                            });
                         }
                     }
                 }
@@ -196,8 +198,7 @@ impl PacketParser {
         while let Some(fragment) = self.fragments.front() {
             if fragment.pos < to {
                 self.fragments.pop_front();
-            }
-            else {
+            } else {
                 break;
             }
         }
@@ -234,7 +235,11 @@ impl PacketParser {
         // consistent with the stream parameters?
         let mut score_seq = 0u8;
 
-        let iter = self.fragments.iter().zip(&mut indicies[0..n_fragments]).enumerate();
+        let iter = self
+            .fragments
+            .iter()
+            .zip(&mut indicies[0..n_fragments])
+            .enumerate();
 
         let is_fixed = self.stream_info.block_len_min == self.stream_info.block_len_max;
 
@@ -280,16 +285,16 @@ impl PacketParser {
 
         indicies[n_fragments] = match self.fragments.get(n_fragments) {
             Some(fragment) => fragment.pos,
-            None           => self.buf_write,
+            None => self.buf_write,
         };
 
         // First, second, and third represent three descending tiers of confidence. A set bit
         // indicates that the fragment at the index of the set bit is likely to be a valid
         // fragment. If absolutely no bits are set then the stream is either very corrupt,
         // malicious, or not FLAC.
-        let first  = (score_par & score_len) & score_seq;
+        let first = (score_par & score_len) & score_seq;
         let second = (score_par | score_len) & score_seq;
-        let third  = (score_par | score_len) | score_seq;
+        let third = (score_par | score_len) | score_seq;
 
         let best = match (first, second, third) {
             (0, 0, _) => third,
@@ -329,8 +334,7 @@ impl PacketParser {
                     if let Some(_) = iter.next() {
                         self.fragments.pop_front();
                         trace!("discard fragment");
-                    }
-                    else {
+                    } else {
                         break;
                     }
                     best >>= 1;
@@ -439,8 +443,7 @@ impl PacketParser {
                                 warn!(
                                     "rebuild failure; \
                                     frame exceeds stream's frame length limit ({} > {})",
-                                    frame_len,
-                                    self.stream_info.frame_byte_len_max
+                                    frame_len, self.stream_info.frame_byte_len_max
                                 );
                                 limit_hit = true;
                             }
@@ -448,9 +451,10 @@ impl PacketParser {
                         // Heuristic 3b.
                         else if self.n_frames >= 4 {
                             let avg_frame_size = (self.frame_size_hist[0]
-                                                    + self.frame_size_hist[1]
-                                                    + self.frame_size_hist[2]
-                                                    + self.frame_size_hist[3]) / 4;
+                                + self.frame_size_hist[1]
+                                + self.frame_size_hist[2]
+                                + self.frame_size_hist[3])
+                                / 4;
 
                             if (frame_len as u32) > 2 * avg_frame_size {
                                 warn!(
@@ -487,8 +491,7 @@ impl PacketParser {
                             self.fragments.pop_front();
                             best >>= 1;
                         }
-                    }
-                    else {
+                    } else {
                         self.fragments.pop_front();
                     }
                 }
@@ -501,5 +504,4 @@ impl PacketParser {
             }
         }
     }
-
 }

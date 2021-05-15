@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use symphonia_core::errors::{Result, decode_error, unsupported_error};
+use symphonia_core::errors::{decode_error, unsupported_error, Result};
 use symphonia_core::io::ByteStream;
 
 use crate::atoms::{Atom, AtomHeader, AtomType, Mp4aAtom};
@@ -47,9 +47,7 @@ impl Atom for StsdAtom {
         let sample_desc_header = AtomHeader::read(reader)?;
 
         let sample_desc = match sample_desc_header.atype {
-            AtomType::Mp4a => {
-                SampleDescription::Mp4a(Mp4aAtom::read(reader, sample_desc_header)?)
-            }
+            AtomType::Mp4a => SampleDescription::Mp4a(Mp4aAtom::read(reader, sample_desc_header)?),
             _ => SampleDescription::Unsupported,
         };
 

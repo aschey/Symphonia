@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use symphonia_core::errors::{Result, decode_error};
+use symphonia_core::errors::{decode_error, Result};
 use symphonia_core::io::ByteStream;
 
 use crate::atoms::{Atom, AtomHeader, AtomIterator, AtomType, HdlrAtom, MdhdAtom, MinfAtom};
@@ -41,7 +41,7 @@ impl Atom for MdiaAtom {
                 AtomType::MediaInfo => {
                     minf = Some(iter.read_atom::<MinfAtom>()?);
                 }
-                _ => ()
+                _ => (),
             }
         }
 
@@ -62,6 +62,6 @@ impl Atom for MdiaAtom {
             mdhd: mdhd.unwrap(),
             hdlr: hdlr.unwrap(),
             minf: minf.unwrap(),
-        }) 
+        })
     }
 }

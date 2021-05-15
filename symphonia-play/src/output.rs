@@ -80,13 +80,11 @@ mod pulseaudio {
                 "Music",                            // Description of the stream
                 &pa_spec,                           // Signal specificaiton
                 None,                               // Default channel map
-                None                                // Custom buffering attributes
+                None,                               // Custom buffering attributes
             );
 
             match pa_result {
-                Ok(pa) => {
-                    Ok(Box::new(PulseAudioOutput { pa, sample_buf }))
-                }
+                Ok(pa) => Ok(Box::new(PulseAudioOutput { pa, sample_buf })),
                 Err(err) => {
                     error!("audio output stream open error: {}", err);
 
@@ -108,7 +106,7 @@ mod pulseaudio {
 
                     Err(AudioOutputError::StreamClosedError)
                 }
-                _ => Ok(())
+                _ => Ok(()),
             }
         }
 
@@ -136,16 +134,14 @@ mod cpal {
 
     pub struct CpalAudioOutput;
 
-    trait AudioOutputSample :
-        cpal::Sample +
-        ConvertibleSample +
-        WriteSample +
-        std::marker::Send +
-        'static {}
+    trait AudioOutputSample:
+        cpal::Sample + ConvertibleSample + WriteSample + std::marker::Send + 'static
+    {
+    }
 
-    impl AudioOutputSample for f32 { }
-    impl AudioOutputSample for i16 { }
-    impl AudioOutputSample for u16 { }
+    impl AudioOutputSample for f32 {}
+    impl AudioOutputSample for i16 {}
+    impl AudioOutputSample for u16 {}
 
     impl CpalAudioOutput {
         pub fn try_open(spec: SignalSpec, duration: Duration) -> Result<Box<dyn AudioOutput>> {
@@ -186,25 +182,23 @@ mod cpal {
 
     struct CpalAudioOutputImpl<T: AudioOutputSample>
     where
-        T: AudioOutputSample
+        T: AudioOutputSample,
     {
         ring_buf_producer: rb::Producer<T>,
         sample_buf: SampleBuffer<T>,
         stream: cpal::Stream,
     }
 
-    impl<T: AudioOutputSample> CpalAudioOutputImpl<T>
-    {
+    impl<T: AudioOutputSample> CpalAudioOutputImpl<T> {
         pub fn try_open(
             spec: SignalSpec,
             duration: Duration,
-            device: &cpal::Device
-        ) -> Result<Box<dyn AudioOutput>>
-        {
+            device: &cpal::Device,
+        ) -> Result<Box<dyn AudioOutput>> {
             // Output audio stream config.
             let config = cpal::StreamConfig {
                 channels: spec.channels.count() as cpal::ChannelCount,
-                sample_rate: cpal::SampleRate(spec.rate)
+                sample_rate: cpal::SampleRate(spec.rate),
             };
 
             // Instantiate a ring buffer capable of buffering 8K (arbitrarily chosen) samples.
@@ -220,9 +214,7 @@ mod cpal {
                     // Mute any remaining samples.
                     data[written..].iter_mut().for_each(|s| *s = T::MID);
                 },
-                move |err| {
-                    error!("audio output error: {}", err)
-                },
+                move |err| error!("audio output error: {}", err),
             );
 
             if let Err(err) = stream_result {
@@ -242,12 +234,15 @@ mod cpal {
 
             let sample_buf = SampleBuffer::<T>::new(duration, spec);
 
-            Ok(Box::new(CpalAudioOutputImpl { ring_buf_producer, sample_buf, stream }))
+            Ok(Box::new(CpalAudioOutputImpl {
+                ring_buf_producer,
+                sample_buf,
+                stream,
+            }))
         }
     }
 
-    impl<T: AudioOutputSample> AudioOutput for CpalAudioOutputImpl<T>
-    {
+    impl<T: AudioOutputSample> AudioOutput for CpalAudioOutputImpl<T> {
         fn write(&mut self, decoded: AudioBufferRef<'_>) -> Result<()> {
             // Audio samples must be interleaved for cpal. Interleave the samples in the audio
             // buffer into the sample buffer.
@@ -263,8 +258,7 @@ mod cpal {
                 // samples are written or the consumer has been destroyed (None is returned).
                 if let Some(written) = self.ring_buf_producer.write_blocking(writeable_samples) {
                     i += written;
-                }
-                else {
+                } else {
                     // Consumer destroyed, return an error.
                     return Err(AudioOutputError::StreamClosedError);
                 }

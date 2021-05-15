@@ -7,7 +7,7 @@
 
 use std::fmt;
 use symphonia_core::audio::{AudioBuffer, Signal};
-use symphonia_core::errors::{Result, decode_error, Error};
+use symphonia_core::errors::{decode_error, Error, Result};
 use symphonia_core::io::{BitStream, BitStreamLtr, BufStream, ByteStream};
 
 use super::synthesis;
@@ -42,7 +42,7 @@ impl FrameData {
     fn granules_mut(&mut self, version: MpegVersion) -> &mut [Granule] {
         match version {
             MpegVersion::Mpeg1 => &mut self.granules[..2],
-            _                  => &mut self.granules[..1],
+            _ => &mut self.granules[..1],
         }
     }
 }
@@ -81,7 +81,7 @@ struct GranuleChannel {
     region1_start: usize,
     /// The index of the first sample in region2 of big_values.
     region2_start: usize,
-    /// Indicates if the pre-emphasis amount for each scale factor band should be added on to each 
+    /// Indicates if the pre-emphasis amount for each scale factor band should be added on to each
     /// scale factor before requantization.
     preflag: bool,
     /// A 0.5x (false) or 1x (true) multiplier for scale factors.
@@ -109,7 +109,7 @@ struct GranuleChannel {
     /// in length (maximum value 15). For MPEG2 with intensity stereo, a scale factor will not
     /// exceed 5 bits (maximum value 31) in length.
     scalefacs: [u8; 39],
-    /// The starting sample index of the rzero partition, or the count of big_values and count1 
+    /// The starting sample index of the rzero partition, or the count of big_values and count1
     /// samples.
     rzero: usize,
 }
@@ -167,7 +167,6 @@ fn read_main_data(
     frame_data: &mut FrameData,
     state: &mut State,
 ) -> Result<()> {
-
     let main_data = state.resevoir.bytes_ref();
     let mut part2_3_begin = 0;
 
@@ -196,7 +195,8 @@ fn read_main_data(
                 bitstream::read_scale_factors_mpeg2(
                     &mut bs,
                     ch > 0 && header.is_intensity_stereo(),
-                    &mut frame_data.granules[gr].channels[ch])
+                    &mut frame_data.granules[gr].channels[ch],
+                )
             }?;
 
             let part2_3_length = u32::from(frame_data.granules[gr].channels[ch].part2_3_length);
@@ -208,7 +208,7 @@ fn read_main_data(
 
             // The Huffman code length (part3).
             let part3_len = part2_3_length - part2_len;
-            
+
             // Decode the Huffman coded spectral samples and get the starting index of the rzero
             // partition.
             let huffman_result = requantize::read_huffman_samples(
@@ -243,15 +243,13 @@ pub fn decode_frame<B: ByteStream>(
     state: &mut State,
     out: &mut AudioBuffer<f32>,
 ) -> Result<()> {
-
     // Initialize an empty FrameData to store the side_info and main_data portions of the
     // frame.
     let mut frame_data: FrameData = Default::default();
 
     let _crc = if header.has_crc {
         Some(reader.read_be_u16()?)
-    }
-    else {
+    } else {
         None
     };
 
@@ -262,11 +260,9 @@ pub fn decode_frame<B: ByteStream>(
     // Buffer main_data into the bit resevoir.
     let main_data_len = header.frame_size - side_info_len - if header.has_crc { 2 } else { 0 };
 
-    state.resevoir.fill(
-        reader,
-        frame_data.main_data_begin as usize,
-        main_data_len
-    )?;
+    state
+        .resevoir
+        .fill(reader, frame_data.main_data_begin as usize, main_data_len)?;
 
     // Read main_data: scale factors and spectral samples.
     read_main_data(&header, &mut frame_data, state)?;
@@ -321,4 +317,3 @@ pub fn decode_frame<B: ByteStream>(
 
     Ok(())
 }
-

@@ -5,13 +5,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use super::{Mapper, MapResult};
+use super::{MapResult, Mapper};
 
-use symphonia_core::meta::MetadataBuilder;
-use symphonia_core::io::{BufStream, ByteStream};
-use symphonia_core::errors::Result;
-use symphonia_core::codecs::{CodecParameters, CODEC_TYPE_OPUS};
 use symphonia_core::audio::Channels;
+use symphonia_core::codecs::{CodecParameters, CODEC_TYPE_OPUS};
+use symphonia_core::errors::Result;
+use symphonia_core::io::{BufStream, ByteStream};
+use symphonia_core::meta::MetadataBuilder;
 
 use symphonia_metadata::vorbis;
 
@@ -75,56 +75,54 @@ pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper>>> {
         0 if channel_count == 1 => Channels::FRONT_LEFT,
         0 if channel_count == 2 => Channels::FRONT_LEFT | Channels::FRONT_RIGHT,
         // Vorbis Mapping
-        1 => {
-            match channel_count {
-                1 => Channels::FRONT_LEFT,
-                2 => Channels::FRONT_LEFT | Channels::FRONT_RIGHT,
-                3 => Channels::FRONT_LEFT | Channels::FRONT_CENTRE | Channels::FRONT_RIGHT,
-                4 => {
-                    Channels::FRONT_LEFT
-                        | Channels::FRONT_RIGHT
-                        | Channels::REAR_LEFT
-                        | Channels::REAR_RIGHT
-                }
-                5 => {
-                    Channels::FRONT_LEFT
-                        | Channels::FRONT_CENTRE
-                        | Channels::FRONT_RIGHT
-                        | Channels::REAR_LEFT
-                        | Channels::REAR_RIGHT
-                }
-                6 => {
-                    Channels::FRONT_LEFT
-                        | Channels::FRONT_CENTRE
-                        | Channels::FRONT_RIGHT
-                        | Channels::REAR_LEFT
-                        | Channels::REAR_RIGHT
-                        | Channels::LFE1
-                }
-                7 => {
-                    Channels::FRONT_LEFT
-                        | Channels::FRONT_CENTRE
-                        | Channels::FRONT_RIGHT
-                        | Channels::SIDE_LEFT
-                        | Channels::SIDE_RIGHT
-                        | Channels::REAR_CENTRE
-                        | Channels::LFE1
-                }
-                8 => {
-                    Channels::FRONT_LEFT
-                        | Channels::FRONT_CENTRE
-                        | Channels::FRONT_RIGHT
-                        | Channels::SIDE_LEFT
-                        | Channels::SIDE_RIGHT
-                        | Channels::REAR_LEFT
-                        | Channels::REAR_RIGHT
-                        | Channels::LFE1
-                }
-                _ => return Ok(None)
+        1 => match channel_count {
+            1 => Channels::FRONT_LEFT,
+            2 => Channels::FRONT_LEFT | Channels::FRONT_RIGHT,
+            3 => Channels::FRONT_LEFT | Channels::FRONT_CENTRE | Channels::FRONT_RIGHT,
+            4 => {
+                Channels::FRONT_LEFT
+                    | Channels::FRONT_RIGHT
+                    | Channels::REAR_LEFT
+                    | Channels::REAR_RIGHT
             }
-        }
+            5 => {
+                Channels::FRONT_LEFT
+                    | Channels::FRONT_CENTRE
+                    | Channels::FRONT_RIGHT
+                    | Channels::REAR_LEFT
+                    | Channels::REAR_RIGHT
+            }
+            6 => {
+                Channels::FRONT_LEFT
+                    | Channels::FRONT_CENTRE
+                    | Channels::FRONT_RIGHT
+                    | Channels::REAR_LEFT
+                    | Channels::REAR_RIGHT
+                    | Channels::LFE1
+            }
+            7 => {
+                Channels::FRONT_LEFT
+                    | Channels::FRONT_CENTRE
+                    | Channels::FRONT_RIGHT
+                    | Channels::SIDE_LEFT
+                    | Channels::SIDE_RIGHT
+                    | Channels::REAR_CENTRE
+                    | Channels::LFE1
+            }
+            8 => {
+                Channels::FRONT_LEFT
+                    | Channels::FRONT_CENTRE
+                    | Channels::FRONT_RIGHT
+                    | Channels::SIDE_LEFT
+                    | Channels::SIDE_RIGHT
+                    | Channels::REAR_LEFT
+                    | Channels::REAR_RIGHT
+                    | Channels::LFE1
+            }
+            _ => return Ok(None),
+        },
         // Reserved, and should NOT be supported for playback.
-        _ => return Ok(None)
+        _ => return Ok(None),
     };
 
     // Populate the codec parameters with the information read from identification header.
@@ -152,7 +150,6 @@ struct OpusMapper {
 }
 
 impl Mapper for OpusMapper {
-
     fn codec(&self) -> &CodecParameters {
         &self.codec_params
     }
@@ -161,8 +158,7 @@ impl Mapper for OpusMapper {
         // After the comment packet there should only be bitstream packets.
         if !self.need_comment {
             Ok(MapResult::Bitstream)
-        }
-        else {
+        } else {
             // If the comment packet is still required, check if the packet is the comment packet.
             if buf.len() >= 8 && buf[..8] == *OGG_OPUS_COMMENT_SIGNATURE {
                 // This packet should be a metadata packet containing a Vorbis Comment.
@@ -174,12 +170,9 @@ impl Mapper for OpusMapper {
                 self.need_comment = false;
 
                 Ok(MapResult::Metadata(builder.metadata()))
-            }
-            else {
+            } else {
                 Ok(MapResult::Unknown)
             }
         }
-
     }
-
 }

@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use std::io;
 use std::str;
 
-use symphonia_core::errors::{Result, unsupported_error, decode_error};
-use symphonia_core::io::{ByteStream, BufStream, FiniteStream};
+use symphonia_core::errors::{decode_error, unsupported_error, Result};
+use symphonia_core::io::{BufStream, ByteStream, FiniteStream};
 use symphonia_core::meta::{StandardTagKey, Tag, Value};
 
 use encoding_rs::UTF_16BE;
@@ -153,85 +153,84 @@ pub enum FrameResult {
     /// A frame was parsed and yielded a single `Tag`.
     Tag(Tag),
     /// A frame was parsed and yielded many `Tag`s.
-    MultipleTags(Vec<Tag>)
+    MultipleTags(Vec<Tag>),
 }
 
 type FrameParser = fn(&mut BufStream<'_>, Option<StandardTagKey>, &str) -> Result<FrameResult>;
 
 lazy_static! {
-    static ref LEGACY_FRAME_MAP:
-        HashMap<&'static [u8; 3], &'static [u8; 4]> = {
-            let mut m = HashMap::new();
-            m.insert(b"BUF", b"RBUF");
-            m.insert(b"CNT", b"PCNT");
-            m.insert(b"COM", b"COMM");
-            m.insert(b"CRA", b"AENC");
-            m.insert(b"EQU", b"EQUA");
-            m.insert(b"ETC", b"ETCO");
-            m.insert(b"GEO", b"GEOB");
-            m.insert(b"IPL", b"IPLS");
-            m.insert(b"LNK", b"LINK");
-            m.insert(b"MCI", b"MCDI");
-            m.insert(b"MLL", b"MLLT");
-            m.insert(b"PCS", b"PCST");
-            m.insert(b"PIC", b"APIC");
-            m.insert(b"POP", b"POPM");
-            m.insert(b"REV", b"RVRB");
-            m.insert(b"RVA", b"RVAD");
-            m.insert(b"SLT", b"SYLT");
-            m.insert(b"STC", b"SYTC");
-            m.insert(b"TAL", b"TALB");
-            m.insert(b"TBP", b"TBPM");
-            m.insert(b"TCM", b"TCOM");
-            m.insert(b"TCO", b"TCON");
-            m.insert(b"TCR", b"TCOP");
-            m.insert(b"TDA", b"TDAT");
-            m.insert(b"TDY", b"TDLY");
-            m.insert(b"TEN", b"TENC");
-            m.insert(b"TFT", b"TFLT");
-            m.insert(b"TIM", b"TIME");
-            m.insert(b"TKE", b"TKEY");
-            m.insert(b"TLA", b"TLAN");
-            m.insert(b"TLE", b"TLEN");
-            m.insert(b"TMT", b"TMED");
-            m.insert(b"TOA", b"TOPE");
-            m.insert(b"TOF", b"TOFN");
-            m.insert(b"TOL", b"TOLY");
-            m.insert(b"TOR", b"TORY");
-            m.insert(b"TOT", b"TOAL");
-            m.insert(b"TP1", b"TPE1");
-            m.insert(b"TP2", b"TPE2");
-            m.insert(b"TP3", b"TPE3");
-            m.insert(b"TP4", b"TPE4");
-            m.insert(b"TPA", b"TPOS");
-            m.insert(b"TPB", b"TPUB");
-            m.insert(b"TRC", b"TSRC");
-            m.insert(b"TRD", b"TRDA");
-            m.insert(b"TRK", b"TRCK");
-            m.insert(b"TS2", b"TSO2");
-            m.insert(b"TSA", b"TSOA");
-            m.insert(b"TSC", b"TSOC");
-            m.insert(b"TSI", b"TSIZ");
-            m.insert(b"TSP", b"TSOP");
-            m.insert(b"TSS", b"TSSE");
-            m.insert(b"TST", b"TSOT");
-            m.insert(b"TT1", b"TIT1");
-            m.insert(b"TT2", b"TIT2");
-            m.insert(b"TT3", b"TIT3");
-            m.insert(b"TXT", b"TEXT");
-            m.insert(b"TXX", b"TXXX");
-            m.insert(b"TYE", b"TYER");
-            m.insert(b"UFI", b"UFID");
-            m.insert(b"ULT", b"USLT");
-            m.insert(b"WAF", b"WOAF");
-            m.insert(b"WAR", b"WOAR");
-            m.insert(b"WAS", b"WOAS");
-            m.insert(b"WCM", b"WCOM");
-            m.insert(b"WCP", b"WCOP");
-            m.insert(b"WPB", b"WPUB");
-            m.insert(b"WXX", b"WXXX");
-            m
-        };
+    static ref LEGACY_FRAME_MAP: HashMap<&'static [u8; 3], &'static [u8; 4]> = {
+        let mut m = HashMap::new();
+        m.insert(b"BUF", b"RBUF");
+        m.insert(b"CNT", b"PCNT");
+        m.insert(b"COM", b"COMM");
+        m.insert(b"CRA", b"AENC");
+        m.insert(b"EQU", b"EQUA");
+        m.insert(b"ETC", b"ETCO");
+        m.insert(b"GEO", b"GEOB");
+        m.insert(b"IPL", b"IPLS");
+        m.insert(b"LNK", b"LINK");
+        m.insert(b"MCI", b"MCDI");
+        m.insert(b"MLL", b"MLLT");
+        m.insert(b"PCS", b"PCST");
+        m.insert(b"PIC", b"APIC");
+        m.insert(b"POP", b"POPM");
+        m.insert(b"REV", b"RVRB");
+        m.insert(b"RVA", b"RVAD");
+        m.insert(b"SLT", b"SYLT");
+        m.insert(b"STC", b"SYTC");
+        m.insert(b"TAL", b"TALB");
+        m.insert(b"TBP", b"TBPM");
+        m.insert(b"TCM", b"TCOM");
+        m.insert(b"TCO", b"TCON");
+        m.insert(b"TCR", b"TCOP");
+        m.insert(b"TDA", b"TDAT");
+        m.insert(b"TDY", b"TDLY");
+        m.insert(b"TEN", b"TENC");
+        m.insert(b"TFT", b"TFLT");
+        m.insert(b"TIM", b"TIME");
+        m.insert(b"TKE", b"TKEY");
+        m.insert(b"TLA", b"TLAN");
+        m.insert(b"TLE", b"TLEN");
+        m.insert(b"TMT", b"TMED");
+        m.insert(b"TOA", b"TOPE");
+        m.insert(b"TOF", b"TOFN");
+        m.insert(b"TOL", b"TOLY");
+        m.insert(b"TOR", b"TORY");
+        m.insert(b"TOT", b"TOAL");
+        m.insert(b"TP1", b"TPE1");
+        m.insert(b"TP2", b"TPE2");
+        m.insert(b"TP3", b"TPE3");
+        m.insert(b"TP4", b"TPE4");
+        m.insert(b"TPA", b"TPOS");
+        m.insert(b"TPB", b"TPUB");
+        m.insert(b"TRC", b"TSRC");
+        m.insert(b"TRD", b"TRDA");
+        m.insert(b"TRK", b"TRCK");
+        m.insert(b"TS2", b"TSO2");
+        m.insert(b"TSA", b"TSOA");
+        m.insert(b"TSC", b"TSOC");
+        m.insert(b"TSI", b"TSIZ");
+        m.insert(b"TSP", b"TSOP");
+        m.insert(b"TSS", b"TSSE");
+        m.insert(b"TST", b"TSOT");
+        m.insert(b"TT1", b"TIT1");
+        m.insert(b"TT2", b"TIT2");
+        m.insert(b"TT3", b"TIT3");
+        m.insert(b"TXT", b"TEXT");
+        m.insert(b"TXX", b"TXXX");
+        m.insert(b"TYE", b"TYER");
+        m.insert(b"UFI", b"UFID");
+        m.insert(b"ULT", b"USLT");
+        m.insert(b"WAF", b"WOAF");
+        m.insert(b"WAR", b"WOAR");
+        m.insert(b"WAS", b"WOAS");
+        m.insert(b"WCM", b"WCOM");
+        m.insert(b"WCP", b"WCOP");
+        m.insert(b"WPB", b"WPUB");
+        m.insert(b"WXX", b"WXXX");
+        m
+    };
 }
 
 lazy_static! {
@@ -350,26 +349,31 @@ lazy_static! {
 }
 
 lazy_static! {
-    static ref TXXX_FRAME_STD_KEYS:
-        HashMap<&'static str, StandardTagKey> = {
-            let mut m = HashMap::new();
-            m.insert("ACOUSTID FINGERPRINT"        , StandardTagKey::AcoustidFingerprint);
-            m.insert("ACOUSTID ID"                 , StandardTagKey::AcoustidId);
-            m.insert("BARCODE"                     , StandardTagKey::IdentBarcode);
-            m.insert("CATALOGNUMBER"               , StandardTagKey::IdentCatalogNumber);
-            m.insert("LICENSE"                     , StandardTagKey::License);
-            m.insert("MUSICBRAINZ ALBUM ARTIST ID" , StandardTagKey::MusicBrainzAlbumArtistId);
-            m.insert("MUSICBRAINZ ALBUM ID"        , StandardTagKey::MusicBrainzAlbumId);
-            m.insert("MUSICBRAINZ ARTIST ID"       , StandardTagKey::MusicBrainzArtistId);
-            m.insert("MUSICBRAINZ RELEASE GROUP ID", StandardTagKey::MusicBrainzReleaseGroupId);
-            m.insert("MUSICBRAINZ WORK ID"         , StandardTagKey::MusicBrainzWorkId);
-            m.insert("REPLAYGAIN_ALBUM_GAIN"       , StandardTagKey::ReplayGainAlbumGain);
-            m.insert("REPLAYGAIN_ALBUM_PEAK"       , StandardTagKey::ReplayGainAlbumPeak);
-            m.insert("REPLAYGAIN_TRACK_GAIN"       , StandardTagKey::ReplayGainTrackGain);
-            m.insert("REPLAYGAIN_TRACK_PEAK"       , StandardTagKey::ReplayGainTrackPeak);
-            m.insert("SCRIPT"                      , StandardTagKey::Script);
-            m
-        };
+    static ref TXXX_FRAME_STD_KEYS: HashMap<&'static str, StandardTagKey> = {
+        let mut m = HashMap::new();
+        m.insert("ACOUSTID FINGERPRINT", StandardTagKey::AcoustidFingerprint);
+        m.insert("ACOUSTID ID", StandardTagKey::AcoustidId);
+        m.insert("BARCODE", StandardTagKey::IdentBarcode);
+        m.insert("CATALOGNUMBER", StandardTagKey::IdentCatalogNumber);
+        m.insert("LICENSE", StandardTagKey::License);
+        m.insert(
+            "MUSICBRAINZ ALBUM ARTIST ID",
+            StandardTagKey::MusicBrainzAlbumArtistId,
+        );
+        m.insert("MUSICBRAINZ ALBUM ID", StandardTagKey::MusicBrainzAlbumId);
+        m.insert("MUSICBRAINZ ARTIST ID", StandardTagKey::MusicBrainzArtistId);
+        m.insert(
+            "MUSICBRAINZ RELEASE GROUP ID",
+            StandardTagKey::MusicBrainzReleaseGroupId,
+        );
+        m.insert("MUSICBRAINZ WORK ID", StandardTagKey::MusicBrainzWorkId);
+        m.insert("REPLAYGAIN_ALBUM_GAIN", StandardTagKey::ReplayGainAlbumGain);
+        m.insert("REPLAYGAIN_ALBUM_PEAK", StandardTagKey::ReplayGainAlbumPeak);
+        m.insert("REPLAYGAIN_TRACK_GAIN", StandardTagKey::ReplayGainTrackGain);
+        m.insert("REPLAYGAIN_TRACK_PEAK", StandardTagKey::ReplayGainTrackPeak);
+        m.insert("SCRIPT", StandardTagKey::Script);
+        m
+    };
 }
 
 /// Validates that a frame id only contains the uppercase letters A-Z, and digits 0-9.
@@ -381,7 +385,10 @@ fn validate_frame_id(id: &[u8]) -> bool {
 
     // Character:   '/'   [ '0'  ...  '9' ]  ':'  ...  '@'  [ 'A'  ...  'Z' ]   '['
     // ASCII Code:  0x2f  [ 0x30 ... 0x39 ]  0x3a ... 0x40  [ 0x41 ... 0x5a ]  0x5b
-    id.iter().filter(|&b| !((*b >= b'0' && *b <= b'9') || (*b >= b'A' && *b <= b'Z'))).count() == 0
+    id.iter()
+        .filter(|&b| !((*b >= b'0' && *b <= b'9') || (*b >= b'A' && *b <= b'Z')))
+        .count()
+        == 0
 }
 
 /// Validates that a language code conforms to the ISO-639-2 standard. That is to say, the code is
@@ -398,9 +405,9 @@ fn find_parser(id: [u8; 4]) -> Option<&'static (FrameParser, Option<StandardTagK
 /// Finds a frame parser for a "legacy" ID3v2.2 tag by finding an equivalent "modern" ID3v2.3+ frame
 /// parser.
 fn find_parser_legacy(id: [u8; 3]) -> Option<&'static (FrameParser, Option<StandardTagKey>)> {
-     match LEGACY_FRAME_MAP.get(&id) {
+    match LEGACY_FRAME_MAP.get(&id) {
         Some(id) => find_parser(**id),
-        _        => None
+        _ => None,
     }
 }
 
@@ -429,7 +436,9 @@ pub fn read_id3v2p2_frame<B: ByteStream>(reader: &mut B) -> Result<FrameResult> 
         Some(p) => p,
         None => {
             reader.ignore_bytes(size)?;
-            return Ok(FrameResult::UnsupportedFrame(str::from_utf8(&id).unwrap().to_string()));
+            return Ok(FrameResult::UnsupportedFrame(
+                str::from_utf8(&id).unwrap().to_string(),
+            ));
         }
     };
 
@@ -440,7 +449,11 @@ pub fn read_id3v2p2_frame<B: ByteStream>(reader: &mut B) -> Result<FrameResult> 
 
     let data = reader.read_boxed_slice_exact(size as usize)?;
 
-    parser(&mut BufStream::new(&data), *std_key, str::from_utf8(&id).unwrap())
+    parser(
+        &mut BufStream::new(&data),
+        *std_key,
+        str::from_utf8(&id).unwrap(),
+    )
 }
 
 /// Read an ID3v2.3 frame.
@@ -474,7 +487,9 @@ pub fn read_id3v2p3_frame<B: ByteStream>(reader: &mut B) -> Result<FrameResult> 
         Some(p) => p,
         None => {
             reader.ignore_bytes(size)?;
-            return Ok(FrameResult::UnsupportedFrame(str::from_utf8(&id).unwrap().to_string()));
+            return Ok(FrameResult::UnsupportedFrame(
+                str::from_utf8(&id).unwrap().to_string(),
+            ));
         }
     };
 
@@ -505,7 +520,11 @@ pub fn read_id3v2p3_frame<B: ByteStream>(reader: &mut B) -> Result<FrameResult> 
 
     let data = reader.read_boxed_slice_exact(size as usize)?;
 
-    parser(&mut BufStream::new(&data), *std_key, str::from_utf8(&id).unwrap())
+    parser(
+        &mut BufStream::new(&data),
+        *std_key,
+        str::from_utf8(&id).unwrap(),
+    )
 }
 
 /// Read an ID3v2.4 frame.
@@ -538,7 +557,9 @@ pub fn read_id3v2p4_frame<B: ByteStream + FiniteStream>(reader: &mut B) -> Resul
         Some(p) => p,
         None => {
             reader.ignore_bytes(size)?;
-            return Ok(FrameResult::UnsupportedFrame(str::from_utf8(&id).unwrap().to_string()));
+            return Ok(FrameResult::UnsupportedFrame(
+                str::from_utf8(&id).unwrap().to_string(),
+            ));
         }
     };
 
@@ -601,12 +622,20 @@ pub fn read_id3v2p4_frame<B: ByteStream + FiniteStream>(reader: &mut B) -> Resul
     if flags & 0x2 != 0x0 {
         let unsync_data = decode_unsynchronisation(&mut raw_data);
 
-        parser(&mut BufStream::new(&unsync_data), *std_key, str::from_utf8(&id).unwrap())
+        parser(
+            &mut BufStream::new(&unsync_data),
+            *std_key,
+            str::from_utf8(&id).unwrap(),
+        )
     }
     // The frame body has not been unsynchronised. Wrap the raw data buffer in BufStream without any
     // additional decoding.
     else {
-        parser(&mut BufStream::new(&raw_data), *std_key, str::from_utf8(&id).unwrap())
+        parser(
+            &mut BufStream::new(&raw_data),
+            *std_key,
+            str::from_utf8(&id).unwrap(),
+        )
     }
 }
 
@@ -619,7 +648,7 @@ fn read_text_frame(
     // The first byte of the frame is the encoding.
     let encoding = match Encoding::parse(reader.read_byte()?) {
         Some(encoding) => encoding,
-        _              => return decode_error("invalid text encoding")
+        _ => return decode_error("invalid text encoding"),
     };
 
     // Since a text frame can have a null-terminated list of values, and Symphonia allows multiple tags
@@ -635,8 +664,7 @@ fn read_text_frame(
             let text = scan_text(reader, encoding, len)?;
 
             tags.push(Tag::new(std_key, id, Value::from(text)));
-        }
-        else {
+        } else {
             break;
         }
     }
@@ -653,7 +681,7 @@ fn read_txxx_frame(
     // The first byte of the frame is the encoding.
     let encoding = match Encoding::parse(reader.read_byte()?) {
         Some(encoding) => encoding,
-        _              => return decode_error("invalid TXXX text encoding")
+        _ => return decode_error("invalid TXXX text encoding"),
     };
 
     // Read the description string.
@@ -663,7 +691,7 @@ fn read_txxx_frame(
     // description.
     let std_key = match TXXX_FRAME_STD_KEYS.get(desc.as_ref()) {
         Some(key) => Some(*key),
-        _         => None,
+        _ => None,
     };
 
     // Generate a key name using the description.
@@ -680,8 +708,7 @@ fn read_txxx_frame(
         if len > 0 {
             let text = scan_text(reader, encoding, len)?;
             tags.push(Tag::new(std_key, &key, Value::from(text)));
-        }
-        else {
+        } else {
             break;
         }
     }
@@ -696,7 +723,11 @@ fn read_url_frame(
     id: &str,
 ) -> Result<FrameResult> {
     // Scan for a ISO-8859-1 URL string.
-    let url = scan_text(reader, Encoding::Iso8859_1, reader.bytes_available() as usize)?;
+    let url = scan_text(
+        reader,
+        Encoding::Iso8859_1,
+        reader.bytes_available() as usize,
+    )?;
     // Create a Tag.
     let tag = Tag::new(std_key, id, Value::from(url));
 
@@ -712,13 +743,20 @@ fn read_wxxx_frame(
     // The first byte of the WXXX frame is the encoding of the description.
     let encoding = match Encoding::parse(reader.read_byte()?) {
         Some(encoding) => encoding,
-        _              => return decode_error("invalid WXXX URL description encoding")
+        _ => return decode_error("invalid WXXX URL description encoding"),
     };
 
     // Scan for the the description string.
-    let desc = format!("WXXX:{}", &scan_text(reader, encoding, reader.bytes_available() as usize)?);
+    let desc = format!(
+        "WXXX:{}",
+        &scan_text(reader, encoding, reader.bytes_available() as usize)?
+    );
     // Scan for a ISO-8859-1 URL string.
-    let url = scan_text(reader, Encoding::Iso8859_1, reader.bytes_available() as usize)?;
+    let url = scan_text(
+        reader,
+        Encoding::Iso8859_1,
+        reader.bytes_available() as usize,
+    )?;
     // Create a Tag.
     let tag = Tag::new(std_key, &desc, Value::from(url));
 
@@ -732,8 +770,14 @@ fn read_priv_frame(
     _: &str,
 ) -> Result<FrameResult> {
     // Scan for a ISO-8859-1 owner identifier.
-    let owner = format!("PRIV:{}",
-        &scan_text(reader, Encoding::Iso8859_1, reader.bytes_available() as usize)?);
+    let owner = format!(
+        "PRIV:{}",
+        &scan_text(
+            reader,
+            Encoding::Iso8859_1,
+            reader.bytes_available() as usize
+        )?
+    );
 
     // The remainder of the frame is binary data.
     let data_buf = reader.read_buf_bytes_ref(reader.bytes_available() as usize)?;
@@ -753,7 +797,7 @@ fn read_comm_uslt_frame(
     // The first byte of the frame is the encoding of the description.
     let encoding = match Encoding::parse(reader.read_byte()?) {
         Some(encoding) => encoding,
-        _              => return decode_error("invalid text encoding")
+        _ => return decode_error("invalid text encoding"),
     };
 
     // The next three bytes are the language.
@@ -764,8 +808,7 @@ fn read_comm_uslt_frame(
     // an error would break far too many files to be worth it.
     let key = if validate_lang_code(lang) {
         format!("{}!{}", id, str::from_utf8(&lang).unwrap())
-    }
-    else {
+    } else {
         id.to_string()
     };
 
@@ -821,7 +864,11 @@ fn read_popm_frame(
     std_key: Option<StandardTagKey>,
     id: &str,
 ) -> Result<FrameResult> {
-    let email = scan_text(reader, Encoding::Iso8859_1, reader.bytes_available() as usize)?;
+    let email = scan_text(
+        reader,
+        Encoding::Iso8859_1,
+        reader.bytes_available() as usize,
+    )?;
     let key = format!("{}:{}", id, &email);
 
     let rating = reader.read_u8()?;
@@ -876,7 +923,7 @@ impl Encoding {
             // UTF-8 terminated with 0x00.
             3 => Some(Encoding::Utf8),
             // Invalid encoding.
-            _ => None
+            _ => None,
         }
     }
 }
@@ -893,10 +940,8 @@ fn scan_text<'a>(
     scan_len: usize,
 ) -> io::Result<Cow<'a, str>> {
     let buf = match encoding {
-        Encoding::Iso8859_1 | Encoding::Utf8 => {
-            reader.scan_bytes_aligned_ref(&[0x00], 1, scan_len)
-        },
-        Encoding::Utf16Bom  | Encoding::Utf16Be => {
+        Encoding::Iso8859_1 | Encoding::Utf8 => reader.scan_bytes_aligned_ref(&[0x00], 1, scan_len),
+        Encoding::Utf16Bom | Encoding::Utf16Be => {
             reader.scan_bytes_aligned_ref(&[0x00, 0x00], 2, scan_len)
         }
     }?;
@@ -917,20 +962,27 @@ fn decode_text(encoding: Encoding, data: &[u8]) -> Cow<'_, str> {
             //
             // TODO: Improve this conversion by returning a copy-on-write str sliced from data if
             // all characters are > 0x1F and < 0x80. Fallback to the iterator approach otherwise.
-            data.iter().filter(|&b| *b > 0x1f).map(|&b| b as char).collect()
-        },
+            data.iter()
+                .filter(|&b| *b > 0x1f)
+                .map(|&b| b as char)
+                .collect()
+        }
         Encoding::Utf8 => {
             // Remove any null terminator(s) (trailing 0x00 byte for UTF-8).
             while end > 0 {
-                if data[end-1] != 0 { break; }
+                if data[end - 1] != 0 {
+                    break;
+                }
                 end -= 1;
             }
             String::from_utf8_lossy(&data[..end])
-        },
-        Encoding::Utf16Bom  | Encoding::Utf16Be => {
+        }
+        Encoding::Utf16Bom | Encoding::Utf16Be => {
             // Remove any null terminator(s) (trailing [0x00, 0x00] bytes for UTF-16 variants).
             while end > 1 {
-                if data[end-2] != 0x0 || data[end-1] != 0x0 { break; }
+                if data[end - 2] != 0x0 || data[end - 1] != 0x0 {
+                    break;
+                }
                 end -= 2;
             }
             // Decode UTF-16 to UTF-8. If a byte-order-mark is present, UTF_16BE.decode() will use

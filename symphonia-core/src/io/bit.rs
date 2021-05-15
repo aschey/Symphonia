@@ -8,8 +8,8 @@
 use std::cmp;
 use std::io;
 
-use crate::util::bits::*;
 use super::{ByteStream, FiniteStream};
+use crate::util::bits::*;
 
 pub mod huffman {
     //! The `huffman` module provides traits and structures for implementing Huffman decoders.
@@ -25,9 +25,9 @@ pub mod huffman {
     /// of the Huffman code) should looked up within the `HuffmanTable`. If the code is not a
     /// prefix, then `HuffmanEntry` is a value entry and the value will be returned by the Huffman
     /// decoder.
-    pub trait HuffmanEntry : Copy + Clone + Sized {
+    pub trait HuffmanEntry: Copy + Clone + Sized {
         /// The value type stored in the `HuffmanTable`.
-        type ValueType : Copy;
+        type ValueType: Copy;
 
         /// Returns true if the `HuffmanEntry` is a value entry.
         fn is_value(&self) -> bool;
@@ -148,35 +148,50 @@ pub mod huffman {
             self.1 as Self::ValueType
         }
     }
-
 }
 
 /// Convenience macro for encoding an `H8` value entry for a `HuffmanTable`. See `jmp8` for `val8`'s
 /// companion entry.
 #[macro_export]
 macro_rules! val8 {
-    ($data:expr, $len:expr) => { (0x8000 | ($len & 0x7), $data & 0xff, std::marker::PhantomData) };
+    ($data:expr, $len:expr) => {
+        (
+            0x8000 | ($len & 0x7),
+            $data & 0xff,
+            std::marker::PhantomData,
+        )
+    };
 }
 
 /// Convenience macro for encoding an `H8` jump entry for a `HuffmanTable`. See `val8` for `jmp8`'s
 /// companion entry.
 #[macro_export]
 macro_rules! jmp8 {
-    ($offset:expr, $len:expr) => { ($len & 0x7, $offset & 0xffff, std::marker::PhantomData) };
+    ($offset:expr, $len:expr) => {
+        ($len & 0x7, $offset & 0xffff, std::marker::PhantomData)
+    };
 }
 
 /// Convenience macro for encoding an `H6` value entry for a `HuffmanTable`. See `jmp16` for
 /// `val16`'s companion entry.
 #[macro_export]
 macro_rules! val16 {
-    ($data:expr, $len:expr) => { (0x8000 | ($len & 0x7), $data & 0xffff, std::marker::PhantomData) };
+    ($data:expr, $len:expr) => {
+        (
+            0x8000 | ($len & 0x7),
+            $data & 0xffff,
+            std::marker::PhantomData,
+        )
+    };
 }
 
 /// Convenience macro for encoding an `H6` jump entry for a `HuffmanTable`. See `val16` for
 /// `jmp16`'s companion entry.
 #[macro_export]
 macro_rules! jmp16 {
-    ($offset:expr, $len:expr) => { ($len & 0x7, $offset & 0xffff, std::marker::PhantomData) };
+    ($offset:expr, $len:expr) => {
+        ($len & 0x7, $offset & 0xffff, std::marker::PhantomData)
+    };
 }
 
 /// A `BitReader` provides methods to sequentially read non-byte aligned data from a source
@@ -209,7 +224,11 @@ pub trait BitReader {
     /// Reads up to 32-bits and interprets them as a signed two's complement integer or returns an
     /// error.
     #[inline(always)]
-    fn read_bits_leq32_signed<B: ByteStream>(&mut self, src: &mut B, num_bits: u32) -> io::Result<i32> {
+    fn read_bits_leq32_signed<B: ByteStream>(
+        &mut self,
+        src: &mut B,
+        num_bits: u32,
+    ) -> io::Result<i32> {
         let value = self.read_bits_leq32(src, num_bits)?;
         Ok(sign_extend_leq32_to_i32(value, num_bits))
     }
@@ -220,7 +239,11 @@ pub trait BitReader {
     /// Reads up to 64-bits and interprets them as a signed two's complement integer or returns an
     /// error.
     #[inline(always)]
-    fn read_bits_leq64_signed<B: ByteStream>(&mut self, src: &mut B, num_bits: u32) -> io::Result<i64> {
+    fn read_bits_leq64_signed<B: ByteStream>(
+        &mut self,
+        src: &mut B,
+        num_bits: u32,
+    ) -> io::Result<i64> {
         let value = self.read_bits_leq64(src, num_bits)?;
         Ok(sign_extend_leq64_to_i64(value, num_bits))
     }
@@ -303,8 +326,7 @@ impl BitReader for BitReaderLtr {
             if num_bits > 0 {
                 self.bits = u32::from(src.read_u8()?);
                 self.n_bits_left = 8 - num_bits;
-            }
-            else {
+            } else {
                 self.n_bits_left = 0;
             }
         }
@@ -324,7 +346,11 @@ impl BitReader for BitReaderLtr {
     }
 
     #[inline(always)]
-    fn read_bits_leq32<B: ByteStream>(&mut self, src: &mut B, mut num_bits: u32) -> io::Result<u32> {
+    fn read_bits_leq32<B: ByteStream>(
+        &mut self,
+        src: &mut B,
+        mut num_bits: u32,
+    ) -> io::Result<u32> {
         debug_assert!(num_bits <= 32);
 
         let mask = !(0xffff_ffff_ffff_ffffu64 << num_bits) as u32;
@@ -334,8 +360,7 @@ impl BitReader for BitReaderLtr {
         if num_bits <= self.n_bits_left {
             self.n_bits_left -= num_bits;
             res >>= self.n_bits_left;
-        }
-        else {
+        } else {
             num_bits -= self.n_bits_left;
 
             while num_bits >= 8 {
@@ -349,8 +374,7 @@ impl BitReader for BitReaderLtr {
                 self.bits = u32::from(src.read_u8()?);
                 self.n_bits_left = 8 - num_bits;
                 res |= self.bits >> self.n_bits_left;
-            }
-            else {
+            } else {
                 self.n_bits_left = 0;
             }
         }
@@ -367,8 +391,7 @@ impl BitReader for BitReaderLtr {
             let upper = u64::from(self.read_bits_leq32(src, 32)?) << shift;
             let lower = u64::from(self.read_bits_leq32(src, shift)?);
             Ok(upper | lower)
-        }
-        else {
+        } else {
             Ok(u64::from(self.read_bits_leq32(src, num_bits)?))
         }
     }
@@ -378,21 +401,18 @@ impl BitReader for BitReaderLtr {
         let mut num = 0;
 
         loop {
+            let zeros = if self.n_bits_left == 0 {
+                self.bits = u32::from(src.read_u8()?);
+                self.n_bits_left = 8;
 
-            let zeros =
-                if self.n_bits_left == 0 {
-                    self.bits = u32::from(src.read_u8()?);
-                    self.n_bits_left = 8;
-
-                    (self.bits as u8).leading_zeros()
-                }
-                else {
-                    // Count the number of valid leading zeros in bits by filling the upper unused
-                    // 24 bits with 1s and rotating right by the number of bits left. The leading
-                    // bits will then contain the number of unread bits.
-                    let byte = (self.bits | 0xffff_ff00).rotate_right(self.n_bits_left);
-                    byte.leading_zeros()
-                };
+                (self.bits as u8).leading_zeros()
+            } else {
+                // Count the number of valid leading zeros in bits by filling the upper unused
+                // 24 bits with 1s and rotating right by the number of bits left. The leading
+                // bits will then contain the number of unread bits.
+                let byte = (self.bits | 0xffff_ff00).rotate_right(self.n_bits_left);
+                byte.leading_zeros()
+            };
 
             // Increment the decoded number.
             num += zeros;
@@ -419,7 +439,6 @@ impl BitReader for BitReaderLtr {
         table: &huffman::HuffmanTable<H>,
         lim_bits: u32,
     ) -> io::Result<(H::ValueType, u32)> {
-
         debug_assert!(!table.data.is_empty());
 
         // The most recent number of bits read from the bitstream.
@@ -472,8 +491,8 @@ impl BitReader for BitReaderLtr {
             // The table's initial lookup length is longer than the limit. Read the remaining bits
             // up-to the limit and try to decode them.
             else {
-                let prefix = (self.read_bits_leq8(src, n_bits)? as usize)
-                                << (table.n_init_bits - lim_bits);
+                let prefix =
+                    (self.read_bits_leq8(src, n_bits)? as usize) << (table.n_init_bits - lim_bits);
 
                 table.data[prefix]
             }
@@ -494,7 +513,10 @@ impl BitReader for BitReaderLtr {
         // bits remain consumed. Return an error as this would generally indicate either an error
         // in how the bitstream is being used, or the stream is malformed.
         else {
-            Err(io::Error::new(io::ErrorKind::Other, "reached bit limit for huffman decode"))
+            Err(io::Error::new(
+                io::ErrorKind::Other,
+                "reached bit limit for huffman decode",
+            ))
         }
     }
 }
@@ -625,7 +647,7 @@ pub trait FiniteBitStream {
 
 impl<B> FiniteBitStream for BitStreamLtr<B>
 where
-    B: ByteStream + FiniteStream
+    B: ByteStream + FiniteStream,
 {
     fn bits_left(&self) -> u64 {
         8 * self.inner.bytes_available() + u64::from(self.reader.n_bits_left)
@@ -634,8 +656,11 @@ where
 
 #[cfg(test)]
 mod tests {
+    use super::{
+        huffman::{HuffmanTable, H8},
+        BitReader, BitReaderLtr,
+    };
     use crate::io::BufStream;
-    use super::{BitReader, BitReaderLtr, huffman::{HuffmanTable, H8}};
 
     #[test]
     fn verify_read_bit() {
@@ -659,78 +684,97 @@ mod tests {
 
         let mut br = BitReaderLtr::new();
 
-        assert_eq!(br.read_bits_leq32(&mut stream,  4).unwrap(), 0b0000_0000_0000_1010);
-        assert_eq!(br.read_bits_leq32(&mut stream,  4).unwrap(), 0b0000_0000_0000_0101);
-        assert_eq!(br.read_bits_leq32(&mut stream, 13).unwrap(), 0b0000_1111_1101_1010);
-        assert_eq!(br.read_bits_leq32(&mut stream,  3).unwrap(), 0b0000_0000_0000_0011);
+        assert_eq!(
+            br.read_bits_leq32(&mut stream, 4).unwrap(),
+            0b0000_0000_0000_1010
+        );
+        assert_eq!(
+            br.read_bits_leq32(&mut stream, 4).unwrap(),
+            0b0000_0000_0000_0101
+        );
+        assert_eq!(
+            br.read_bits_leq32(&mut stream, 13).unwrap(),
+            0b0000_1111_1101_1010
+        );
+        assert_eq!(
+            br.read_bits_leq32(&mut stream, 3).unwrap(),
+            0b0000_0000_0000_0011
+        );
     }
 
     #[test]
     fn verify_read_bits_leq64() {
-        let mut stream = BufStream::new(
-            &[0x99, 0xaa, 0x55, 0xff, 0xff, 0x55, 0xaa, 0x99,
-              0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]);
+        let mut stream = BufStream::new(&[
+            0x99, 0xaa, 0x55, 0xff, 0xff, 0x55, 0xaa, 0x99, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66,
+            0x77, 0x88,
+        ]);
 
         let mut br = BitReaderLtr::new();
 
         assert_eq!(br.read_bits_leq64(&mut stream, 40).unwrap(), 0x99aa55ffff);
-        assert_eq!(br.read_bits_leq64(&mut stream,  4).unwrap(), 0x05);
-        assert_eq!(br.read_bits_leq64(&mut stream,  4).unwrap(), 0x05);
+        assert_eq!(br.read_bits_leq64(&mut stream, 4).unwrap(), 0x05);
+        assert_eq!(br.read_bits_leq64(&mut stream, 4).unwrap(), 0x05);
         assert_eq!(br.read_bits_leq64(&mut stream, 16).unwrap(), 0xaa99);
-        assert_eq!(br.read_bits_leq64(&mut stream, 64).unwrap(), 0x1122334455667788);
+        assert_eq!(
+            br.read_bits_leq64(&mut stream, 64).unwrap(),
+            0x1122334455667788
+        );
     }
 
     #[test]
     fn verify_read_unary() {
-        let mut stream = BufStream::new(
-            &[0b0000_0001, 0b0001_0000, 0b0000_0000, 0b1000_0000, 0b1111_1011]);
+        let mut stream = BufStream::new(&[
+            0b0000_0001,
+            0b0001_0000,
+            0b0000_0000,
+            0b1000_0000,
+            0b1111_1011,
+        ]);
 
         let mut br = BitReaderLtr::new();
 
-        assert_eq!(br.read_unary(&mut stream).unwrap(),  7);
-        assert_eq!(br.read_unary(&mut stream).unwrap(),  3);
+        assert_eq!(br.read_unary(&mut stream).unwrap(), 7);
+        assert_eq!(br.read_unary(&mut stream).unwrap(), 3);
         assert_eq!(br.read_unary(&mut stream).unwrap(), 12);
-        assert_eq!(br.read_unary(&mut stream).unwrap(),  7);
-        assert_eq!(br.read_unary(&mut stream).unwrap(),  0);
-        assert_eq!(br.read_unary(&mut stream).unwrap(),  0);
-        assert_eq!(br.read_unary(&mut stream).unwrap(),  0);
-        assert_eq!(br.read_unary(&mut stream).unwrap(),  0);
-        assert_eq!(br.read_unary(&mut stream).unwrap(),  1);
-        assert_eq!(br.read_unary(&mut stream).unwrap(),  0);
+        assert_eq!(br.read_unary(&mut stream).unwrap(), 7);
+        assert_eq!(br.read_unary(&mut stream).unwrap(), 0);
+        assert_eq!(br.read_unary(&mut stream).unwrap(), 0);
+        assert_eq!(br.read_unary(&mut stream).unwrap(), 0);
+        assert_eq!(br.read_unary(&mut stream).unwrap(), 0);
+        assert_eq!(br.read_unary(&mut stream).unwrap(), 1);
+        assert_eq!(br.read_unary(&mut stream).unwrap(), 0);
     }
 
-        #[test]
+    #[test]
     fn verify_read_huffman() {
         // A simple Huffman table.
         const TABLE: HuffmanTable<H8> = HuffmanTable {
             data: &[
                 // 0b ... (0)
-                jmp8!(16, 2),    // 0b0000
-                jmp8!(20, 1),    // 0b0001
-                val8!(0x11, 3),    // 0b0010
-                val8!(0x11, 3),    // 0b0011
-                val8!(0x1, 3),    // 0b0100
-                val8!(0x1, 3),    // 0b0101
-                val8!(0x10, 3),    // 0b0110
-                val8!(0x10, 3),    // 0b0111
-                val8!(0x0, 1),    // 0b1000
-                val8!(0x0, 1),    // 0b1001
-                val8!(0x0, 1),    // 0b1010
-                val8!(0x0, 1),    // 0b1011
-                val8!(0x0, 1),    // 0b1100
-                val8!(0x0, 1),    // 0b1101
-                val8!(0x0, 1),    // 0b1110
-                val8!(0x0, 1),    // 0b1111
-
+                jmp8!(16, 2),   // 0b0000
+                jmp8!(20, 1),   // 0b0001
+                val8!(0x11, 3), // 0b0010
+                val8!(0x11, 3), // 0b0011
+                val8!(0x1, 3),  // 0b0100
+                val8!(0x1, 3),  // 0b0101
+                val8!(0x10, 3), // 0b0110
+                val8!(0x10, 3), // 0b0111
+                val8!(0x0, 1),  // 0b1000
+                val8!(0x0, 1),  // 0b1001
+                val8!(0x0, 1),  // 0b1010
+                val8!(0x0, 1),  // 0b1011
+                val8!(0x0, 1),  // 0b1100
+                val8!(0x0, 1),  // 0b1101
+                val8!(0x0, 1),  // 0b1110
+                val8!(0x0, 1),  // 0b1111
                 // 0b0000 ... (16)
-                val8!(0x22, 2),    // 0b00
-                val8!(0x2, 2),    // 0b01
-                val8!(0x12, 1),    // 0b10
-                val8!(0x12, 1),    // 0b11
-
+                val8!(0x22, 2), // 0b00
+                val8!(0x2, 2),  // 0b01
+                val8!(0x12, 1), // 0b10
+                val8!(0x12, 1), // 0b11
                 // 0b0001 ... (20)
-                val8!(0x21, 1),    // 0b0
-                val8!(0x20, 1),    // 0b1
+                val8!(0x21, 1), // 0b0
+                val8!(0x20, 1), // 0b1
             ],
             n_init_bits: 4,
             n_table_bits: 8,
@@ -740,10 +784,10 @@ mod tests {
 
         let mut br = BitReaderLtr::new();
 
-        assert_eq!(br.read_huffman(&mut stream, &TABLE, 24).unwrap().0, 0x1 );
+        assert_eq!(br.read_huffman(&mut stream, &TABLE, 24).unwrap().0, 0x1);
         assert_eq!(br.read_huffman(&mut stream, &TABLE, 21).unwrap().0, 0x22);
         assert_eq!(br.read_huffman(&mut stream, &TABLE, 15).unwrap().0, 0x12);
-        assert_eq!(br.read_huffman(&mut stream, &TABLE, 10).unwrap().0, 0x2 );
-        assert_eq!(br.read_huffman(&mut stream, &TABLE,  3).unwrap().0, 0x11);
+        assert_eq!(br.read_huffman(&mut stream, &TABLE, 10).unwrap().0, 0x2);
+        assert_eq!(br.read_huffman(&mut stream, &TABLE, 3).unwrap().0, 0x11);
     }
 }

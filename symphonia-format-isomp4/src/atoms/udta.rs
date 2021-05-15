@@ -36,7 +36,7 @@ impl Atom for UdtaAtom {
 
     fn read<B: ByteStream>(reader: &mut B, header: AtomHeader) -> Result<Self> {
         let mut iter = AtomIterator::new(reader, header);
-        
+
         let mut meta = None;
 
         while let Some(header) = iter.next()? {
@@ -44,13 +44,10 @@ impl Atom for UdtaAtom {
                 AtomType::Meta => {
                     meta = Some(iter.read_atom::<MetaAtom>()?);
                 }
-                _ => ()
+                _ => (),
             }
         }
 
-        Ok(UdtaAtom {
-            header,
-            meta,
-        })
+        Ok(UdtaAtom { header, meta })
     }
 }

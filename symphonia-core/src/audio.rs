@@ -20,7 +20,7 @@ use bitflags::bitflags;
 
 use crate::conv::{ConvertibleSample, IntoSample};
 use crate::errors::Result;
-use crate::sample::{Sample, i24, u24};
+use crate::sample::{i24, u24, Sample};
 use crate::units::Duration;
 
 bitflags! {
@@ -109,21 +109,12 @@ pub enum Layout {
 }
 
 impl Layout {
-
     /// Converts a channel `Layout` into a `Channels` bit mask.
     fn into_channels(self) -> Channels {
         match self {
-            Layout::Mono => {
-                Channels::FRONT_LEFT
-            },
-            Layout::Stereo => {
-                Channels::FRONT_LEFT | Channels::FRONT_RIGHT
-            },
-            Layout::TwoPointOne => {
-                Channels::FRONT_LEFT
-                    | Channels::FRONT_RIGHT
-                    | Channels::LFE1
-            },
+            Layout::Mono => Channels::FRONT_LEFT,
+            Layout::Stereo => Channels::FRONT_LEFT | Channels::FRONT_RIGHT,
+            Layout::TwoPointOne => Channels::FRONT_LEFT | Channels::FRONT_RIGHT | Channels::LFE1,
             Layout::FivePointOne => {
                 Channels::FRONT_LEFT
                     | Channels::FRONT_RIGHT
@@ -134,7 +125,6 @@ impl Layout {
             }
         }
     }
-
 }
 
 /// `SignalSpec` describes the characteristics of a Signal.
@@ -161,10 +151,9 @@ impl SignalSpec {
     }
 }
 
-
 /// `WriteSample` provides a typed interface for converting a sample from it's in-memory type to its
 /// StreamType.
-pub trait WriteSample : Sample {
+pub trait WriteSample: Sample {
     fn write(sample: Self, dest: &mut SampleWriter<Self>);
 }
 
@@ -243,9 +232,11 @@ pub struct AudioPlanes<'a, S: 'a + Sample> {
     planes: ArrayVec<&'a [S], 32>,
 }
 
-impl<'a, S : Sample> AudioPlanes<'a, S> {
+impl<'a, S: Sample> AudioPlanes<'a, S> {
     fn new() -> Self {
-        AudioPlanes { planes: ArrayVec::new() }
+        AudioPlanes {
+            planes: ArrayVec::new(),
+        }
     }
 
     /// Gets all the audio planes.
@@ -259,9 +250,11 @@ pub struct AudioPlanesMut<'a, S: 'a + Sample> {
     planes: ArrayVec<&'a mut [S], 32>,
 }
 
-impl<'a, S : Sample> AudioPlanesMut<'a, S> {
+impl<'a, S: Sample> AudioPlanesMut<'a, S> {
     fn new() -> Self {
-        AudioPlanesMut { planes: ArrayVec::new() }
+        AudioPlanesMut {
+            planes: ArrayVec::new(),
+        }
     }
 
     /// Gets all the audio planes.
@@ -276,14 +269,14 @@ impl<'a, S : Sample> AudioPlanesMut<'a, S> {
 /// channel. Manipulation of samples is accomplished through the Signal trait or direct buffer
 /// manipulation.
 #[derive(Clone)]
-pub struct AudioBuffer<S : Sample> {
+pub struct AudioBuffer<S: Sample> {
     buf: Vec<S>,
     spec: SignalSpec,
     n_frames: usize,
     n_capacity: usize,
 }
 
-impl<S : Sample> AudioBuffer<S> {
+impl<S: Sample> AudioBuffer<S> {
     /// Instantiate a new `AudioBuffer` using the specified signal specification and of the given
     /// duration.
     pub fn new(duration: Duration, spec: SignalSpec) -> Self {
@@ -368,7 +361,7 @@ impl<S : Sample> AudioBuffer<S> {
     /// different type. If the types are the same then this is a copy operation.
     pub fn convert<T: Sample>(&self, dest: &mut AudioBuffer<T>)
     where
-        S: IntoSample<T>
+        S: IntoSample<T>,
     {
         assert!(dest.n_frames == self.n_frames);
         assert!(dest.n_capacity == self.n_capacity);
@@ -432,7 +425,7 @@ impl AsAudioBufferRef for AudioBuffer<i32> {
 
 /// The `Signal` trait provides methods for rendering and transforming contiguous buffers of audio
 /// data.
-pub trait Signal<S : Sample> {
+pub trait Signal<S: Sample> {
     /// Gets the number of actual frames written to the buffer. Conversely, this also is the number
     /// of written samples in any one channel.
     fn frames(&self) -> usize;
@@ -472,7 +465,7 @@ pub trait Signal<S : Sample> {
     #[inline]
     fn fill<'a, F>(&'a mut self, fill: F) -> Result<()>
     where
-        F: FnMut(&mut AudioPlanesMut<'a, S>, usize) -> Result<()>
+        F: FnMut(&mut AudioPlanesMut<'a, S>, usize) -> Result<()>,
     {
         self.clear();
         self.render(None, fill)
@@ -486,7 +479,6 @@ pub trait Signal<S : Sample> {
 }
 
 impl<S: Sample> Signal<S> for AudioBuffer<S> {
-
     fn clear(&mut self) {
         self.n_frames = 0;
     }
@@ -495,7 +487,7 @@ impl<S: Sample> Signal<S> for AudioBuffer<S> {
         self.n_frames
     }
 
-    fn chan(&self, channel: usize) -> &[S]{
+    fn chan(&self, channel: usize) -> &[S] {
         let start = channel * self.n_capacity;
         let end = start + self.n_frames;
 
@@ -522,18 +514,20 @@ impl<S: Sample> Signal<S> for AudioBuffer<S> {
         let first_idx = self.n_capacity * first;
         let second_idx = self.n_capacity * second;
 
-        // The AudioBuffer struct maintains the invariant that the underlying buffer is always 
+        // The AudioBuffer struct maintains the invariant that the underlying buffer is always
         // # of channels * n_capacity samples long. It also maintains the invariant that n_frames is
-        // always <= n_capacity. Therefore, so long as the first and second channel indicies are 
+        // always <= n_capacity. Therefore, so long as the first and second channel indicies are
         // unique and are strictly less than the AudioBuffer's channel count, it is safe to get
         // mutable slices to each channel's respective part of the buffer.
         assert!(first_idx < self.buf.len());
-        assert!(second_idx <self.buf.len());
+        assert!(second_idx < self.buf.len());
 
         unsafe {
             let ptr = self.buf.as_mut_ptr();
-            (slice::from_raw_parts_mut(ptr.add(first_idx), self.n_frames),
-             slice::from_raw_parts_mut(ptr.add(second_idx), self.n_frames))
+            (
+                slice::from_raw_parts_mut(ptr.add(first_idx), self.n_frames),
+                slice::from_raw_parts_mut(ptr.add(second_idx), self.n_frames),
+            )
         }
     }
 
@@ -546,7 +540,7 @@ impl<S: Sample> Signal<S> for AudioBuffer<S> {
 
     fn render<'a, F>(&'a mut self, n_frames: Option<usize>, mut render: F) -> Result<()>
     where
-        F: FnMut(&mut AudioPlanesMut<'a, S>, usize) -> Result<()>
+        F: FnMut(&mut AudioPlanesMut<'a, S>, usize) -> Result<()>,
     {
         // The number of frames to be rendered is the amount requested, if specified, or the
         // remainder of the audio buffer.
@@ -577,7 +571,7 @@ impl<S: Sample> Signal<S> for AudioBuffer<S> {
 
     fn transform<F>(&mut self, f: F)
     where
-        F: Fn(S) -> S
+        F: Fn(S) -> S,
     {
         debug_assert!(self.n_frames <= self.n_capacity);
 
@@ -588,7 +582,6 @@ impl<S: Sample> Signal<S> for AudioBuffer<S> {
             }
         }
     }
-
 }
 
 /// A `SampleBuffer`, is a sample oriented buffer. It is agnostic to the ordering/layout of samples
@@ -843,11 +836,11 @@ impl<S: Sample + WriteSample> RawSampleBuffer<S> {
             // No channels, do nothing.
             0 => (),
             // Mono
-            1=> {
+            1 => {
                 for m in &src.buf[0..n_frames] {
                     S::write((*m).into_sample(), &mut writer);
                 }
-            },
+            }
             // Stereo
             2 => {
                 let l_buf = &src.buf[0..n_frames];
@@ -857,7 +850,7 @@ impl<S: Sample + WriteSample> RawSampleBuffer<S> {
                     S::write((*l).into_sample(), &mut writer);
                     S::write((*r).into_sample(), &mut writer);
                 }
-            },
+            }
             // 3+ channels
             _ => {
                 let stride = src.n_capacity;
@@ -869,7 +862,7 @@ impl<S: Sample + WriteSample> RawSampleBuffer<S> {
                         S::write(s.into_sample(), &mut writer);
                     }
                 }
-            },
+            }
         }
     }
 
@@ -891,11 +884,11 @@ impl<S: Sample + WriteSample> RawSampleBuffer<S> {
             // No channels, do nothing.
             0 => (),
             // Mono
-            1=> {
+            1 => {
                 for m in &src.buf[0..n_frames] {
                     S::write(*m, &mut writer);
                 }
-            },
+            }
             // Stereo
             2 => {
                 let l_buf = &src.buf[0..n_frames];
@@ -905,7 +898,7 @@ impl<S: Sample + WriteSample> RawSampleBuffer<S> {
                     S::write(*l, &mut writer);
                     S::write(*r, &mut writer);
                 }
-            },
+            }
             // 3+ channels
             _ => {
                 let stride = src.n_capacity;
@@ -916,7 +909,7 @@ impl<S: Sample + WriteSample> RawSampleBuffer<S> {
                         S::write(src.buf[ch * stride + i], &mut writer);
                     }
                 }
-            },
+            }
         }
     }
 
@@ -950,14 +943,15 @@ pub struct SampleWriter<'a, S: Sample + WriteSample> {
 }
 
 impl<'a, S: Sample + WriteSample> SampleWriter<'a, S> {
-
     fn from_buf(n_samples: usize, buf: &mut RawSampleBuffer<S>) -> SampleWriter<S> {
         let bytes = buf.req_bytes_mut(n_samples);
         //TODO: explain why this is safe
         unsafe {
             SampleWriter {
                 buf: slice::from_raw_parts_mut(
-                    bytes.as_mut_ptr() as *mut S::StreamType, buf.capacity()),
+                    bytes.as_mut_ptr() as *mut S::StreamType,
+                    buf.capacity(),
+                ),
                 next: 0,
             }
         }
@@ -969,5 +963,4 @@ impl<'a, S: Sample + WriteSample> SampleWriter<'a, S> {
         // Increment writeable index.
         self.next += 1;
     }
-
 }

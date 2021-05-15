@@ -16,9 +16,9 @@ mod vorbis;
 /// Detect `CodecParameters` for a stream that is coded using a supported codec.
 pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper>>> {
     let mapper = flac::detect(buf)?
-                    .or(vorbis::detect(buf)?)
-                    .or(opus::detect(buf)?)
-                    .or_else(make_null_mapper);
+        .or(vorbis::detect(buf)?)
+        .or(opus::detect(buf)?)
+        .or_else(make_null_mapper);
 
     Ok(mapper)
 }

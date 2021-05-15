@@ -57,19 +57,19 @@ impl fmt::Display for Error {
             Error::IoError(ref err) => err.fmt(f),
             Error::DecodeError(msg) => {
                 write!(f, "malformed stream: {}", msg)
-            },
+            }
             Error::SeekError(ref kind) => {
                 write!(f, "seek error: {}", kind.as_str())
             }
             Error::Unsupported(feature) => {
                 write!(f, "unsupported feature: {}", feature)
-            },
+            }
             Error::LimitError(constraint) => {
                 write!(f, "limit reached: {}", constraint)
-            },
+            }
             Error::ResetRequired => {
                 write!(f, "decoder needs to be reset")
-            },
+            }
         }
     }
 }
@@ -122,5 +122,8 @@ pub fn reset_error<T>() -> Result<T> {
 
 /// Convenience function to create an end-of-stream error.
 pub fn end_of_stream_error<T>() -> Result<T> {
-    Err(Error::IoError(io::Error::new(io::ErrorKind::UnexpectedEof, "end of stream")))
+    Err(Error::IoError(io::Error::new(
+        io::ErrorKind::UnexpectedEof,
+        "end of stream",
+    )))
 }

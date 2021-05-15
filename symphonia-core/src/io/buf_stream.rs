@@ -20,10 +20,7 @@ pub struct BufStream<'a> {
 
 impl<'a> BufStream<'a> {
     pub fn new(buf: &'a [u8]) -> Self {
-        BufStream {
-            buf,
-            pos: 0,
-        }
+        BufStream { buf, pos: 0 }
     }
 
     /// Scans up-to `scan_len` bytes from the stream until a byte pattern is matched. A reference to
@@ -42,7 +39,7 @@ impl<'a> BufStream<'a> {
         &mut self,
         pattern: &[u8],
         align: usize,
-        scan_len: usize
+        scan_len: usize,
     ) -> io::Result<&'a [u8]> {
         // The pattern must be atleast one byte.
         debug_assert!(!pattern.is_empty());
@@ -77,20 +74,24 @@ impl<'a> BufStream<'a> {
     /// Returns a reference to the next `len` bytes in the buffer and advances the stream.
     pub fn read_buf_bytes_ref(&mut self, len: usize) -> io::Result<&'a [u8]> {
         if self.pos + len > self.buf.len() {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, UNDERRUN_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                UNDERRUN_ERROR_STR,
+            ));
         }
         self.pos += len;
         Ok(&self.buf[self.pos - len..self.pos])
     }
-
 }
 
 impl<'a> ByteStream for BufStream<'a> {
-
     #[inline(always)]
     fn read_byte(&mut self) -> io::Result<u8> {
         if self.buf.len() - self.pos < 1 {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, UNDERRUN_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                UNDERRUN_ERROR_STR,
+            ));
         }
 
         self.pos += 1;
@@ -100,7 +101,10 @@ impl<'a> ByteStream for BufStream<'a> {
     #[inline(always)]
     fn read_double_bytes(&mut self) -> io::Result<[u8; 2]> {
         if self.buf.len() - self.pos < 2 {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, UNDERRUN_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                UNDERRUN_ERROR_STR,
+            ));
         }
 
         let mut bytes: [u8; 2] = [0u8; 2];
@@ -113,7 +117,10 @@ impl<'a> ByteStream for BufStream<'a> {
     #[inline(always)]
     fn read_triple_bytes(&mut self) -> io::Result<[u8; 3]> {
         if self.buf.len() - self.pos < 3 {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, UNDERRUN_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                UNDERRUN_ERROR_STR,
+            ));
         }
 
         let mut bytes: [u8; 3] = [0u8; 3];
@@ -126,7 +133,10 @@ impl<'a> ByteStream for BufStream<'a> {
     #[inline(always)]
     fn read_quad_bytes(&mut self) -> io::Result<[u8; 4]> {
         if self.buf.len() - self.pos < 4 {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, UNDERRUN_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                UNDERRUN_ERROR_STR,
+            ));
         }
 
         let mut bytes: [u8; 4] = [0u8; 4];
@@ -148,7 +158,10 @@ impl<'a> ByteStream for BufStream<'a> {
         let len = buf.len();
 
         if self.buf.len() - self.pos < len {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, UNDERRUN_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                UNDERRUN_ERROR_STR,
+            ));
         }
 
         buf.copy_from_slice(&self.buf[self.pos..self.pos + len]);
@@ -161,7 +174,7 @@ impl<'a> ByteStream for BufStream<'a> {
         &mut self,
         pattern: &[u8],
         align: usize,
-        buf: &'b mut [u8]
+        buf: &'b mut [u8],
     ) -> io::Result<&'b mut [u8]> {
         let scanned = self.scan_bytes_aligned_ref(pattern, align, buf.len())?;
         buf[..scanned.len()].copy_from_slice(scanned);
@@ -171,7 +184,10 @@ impl<'a> ByteStream for BufStream<'a> {
 
     fn ignore_bytes(&mut self, count: u64) -> io::Result<()> {
         if self.buf.len() - self.pos < count as usize {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, UNDERRUN_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                UNDERRUN_ERROR_STR,
+            ));
         }
 
         self.pos += count as usize;

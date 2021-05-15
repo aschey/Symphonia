@@ -7,7 +7,7 @@
 
 use std::cmp;
 use std::io;
-use std::io::{Read, IoSliceMut};
+use std::io::{IoSliceMut, Read};
 
 use super::{ByteStream, MediaSource};
 
@@ -65,7 +65,7 @@ pub struct MediaSourceStream {
 }
 
 impl MediaSourceStream {
-    const MIN_BLOCK_LEN: usize =  1 * 1024;
+    const MIN_BLOCK_LEN: usize = 1 * 1024;
     const MAX_BLOCK_LEN: usize = 32 * 1024;
 
     pub fn new(source: Box<dyn MediaSource>, options: MediaSourceStreamOptions) -> Self {
@@ -91,8 +91,7 @@ impl MediaSourceStream {
     pub fn unread_buffer_len(&self) -> usize {
         let n_bytes = if self.write_pos >= self.read_pos {
             self.write_pos - self.read_pos
-        }
-        else {
+        } else {
             self.write_pos + (self.ring.len() - self.read_pos)
         };
 
@@ -123,13 +122,11 @@ impl MediaSourceStream {
         let delta = if pos > old_pos {
             assert!(pos - old_pos < std::isize::MAX as u64);
             (pos - old_pos) as isize
-        }
-        else if pos < old_pos {
+        } else if pos < old_pos {
             // Backward seek.
             assert!(old_pos - pos < std::isize::MAX as u64);
             -((old_pos - pos) as isize)
-        }
-        else {
+        } else {
             0
         };
 
@@ -142,8 +139,7 @@ impl MediaSourceStream {
         if delta < 0 {
             let abs_delta = cmp::min((-delta) as usize, self.read_buffer_len());
             self.read_pos = (self.read_pos + self.ring.len() - abs_delta) & self.ring_mask;
-        }
-        else if delta > 0 {
+        } else if delta > 0 {
             let abs_delta = cmp::min(delta as usize, self.unread_buffer_len());
             self.read_pos = (self.read_pos + abs_delta) & self.ring_mask;
         }
@@ -171,15 +167,11 @@ impl MediaSourceStream {
             // slice.
             let actual_read_len = if vec0.len() >= self.read_block_len {
                 self.inner.read(&mut vec0[..self.read_block_len])?
-            }
-            else {
+            } else {
                 // Otherwise, perform a vectored read into the two contiguous region slices.
                 let rem = self.read_block_len - vec0.len();
 
-                let ring_vectors = &mut [
-                    IoSliceMut::new(vec0),
-                    IoSliceMut::new(&mut vec1[..rem]),
-                ];
+                let ring_vectors = &mut [IoSliceMut::new(vec0), IoSliceMut::new(&mut vec1[..rem])];
 
                 self.inner.read_vectored(ring_vectors)?
             };
@@ -205,7 +197,10 @@ impl MediaSourceStream {
         self.fetch()?;
 
         if self.is_buffer_exhausted() {
-            return Err(io::Error::new(io::ErrorKind::UnexpectedEof, END_OF_STREAM_ERROR_STR));
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                END_OF_STREAM_ERROR_STR,
+            ));
         }
 
         Ok(())
@@ -222,8 +217,7 @@ impl MediaSourceStream {
     fn continguous_buf(&self) -> &[u8] {
         if self.write_pos >= self.read_pos {
             &self.ring[self.read_pos..self.write_pos]
-        }
-        else {
+        } else {
             &self.ring[self.read_pos..]
         }
     }
@@ -239,7 +233,6 @@ impl MediaSourceStream {
 }
 
 impl MediaSource for MediaSourceStream {
-
     #[inline]
     fn is_seekable(&self) -> bool {
         self.inner.is_seekable()
@@ -249,11 +242,9 @@ impl MediaSource for MediaSourceStream {
     fn len(&self) -> Option<u64> {
         self.inner.len()
     }
-
 }
 
 impl io::Read for MediaSourceStream {
-
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         let read_len = buf.len();
 
@@ -268,8 +259,8 @@ impl io::Read for MediaSourceStream {
                 Ok(count) => {
                     buf = &mut buf[count..];
                     self.consume(count);
-                },
-                Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {},
+                }
+                Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
                 Err(e) => return Err(e),
             }
         }
@@ -278,38 +269,30 @@ impl io::Read for MediaSourceStream {
         // that buffer that is remaining.
         Ok(read_len - buf.len())
     }
-
 }
 
 impl io::Seek for MediaSourceStream {
-
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
         // The current position of the underlying reader is ahead of the current position of the
         // MediaSourceStream by how ever many bytes have not been read from the read-ahead buffer
         // yet. When seeking from the current position adjust the position delta to offset that
         // difference.
         let pos = match pos {
-            io::SeekFrom::Current(0) => {
-                return Ok(self.pos())
-            },
+            io::SeekFrom::Current(0) => return Ok(self.pos()),
             io::SeekFrom::Current(delta_pos) => {
                 let delta = delta_pos - self.unread_buffer_len() as i64;
                 self.inner.seek(io::SeekFrom::Current(delta))
-            },
-            _ => {
-                self.inner.seek(pos)
             }
+            _ => self.inner.seek(pos),
         }?;
 
         self.reset(pos);
 
         Ok(pos)
     }
-
 }
 
 impl ByteStream for MediaSourceStream {
-
     #[inline(always)]
     fn read_byte(&mut self) -> io::Result<u8> {
         // This function, read_byte, is inlined for performance. To reduce code bloat, place the
@@ -334,8 +317,7 @@ impl ByteStream for MediaSourceStream {
         if buf.len() >= 2 {
             bytes.copy_from_slice(&buf[..2]);
             self.consume(2);
-        }
-        else {
+        } else {
             for byte in bytes.iter_mut() {
                 *byte = self.read_byte()?;
             }
@@ -353,8 +335,7 @@ impl ByteStream for MediaSourceStream {
         if buf.len() >= 3 {
             bytes.copy_from_slice(&buf[..3]);
             self.consume(3);
-        }
-        else {
+        } else {
             for byte in bytes.iter_mut() {
                 *byte = self.read_byte()?;
             }
@@ -371,8 +352,7 @@ impl ByteStream for MediaSourceStream {
         if buf.len() >= 4 {
             bytes.copy_from_slice(&buf[..4]);
             self.consume(4);
-        }
-        else {
+        } else {
             for byte in bytes.iter_mut() {
                 *byte = self.read_byte()?;
             }
@@ -388,9 +368,11 @@ impl ByteStream for MediaSourceStream {
         // can be read. If a non-zero read is requested, and 0 bytes are read, return an
         // end-of-stream error.
         if !buf.is_empty() && read == 0 {
-            Err(io::Error::new(io::ErrorKind::UnexpectedEof, END_OF_STREAM_ERROR_STR))
-        }
-        else {
+            Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                END_OF_STREAM_ERROR_STR,
+            ))
+        } else {
             Ok(read)
         }
     }
@@ -408,9 +390,11 @@ impl ByteStream for MediaSourceStream {
         }
 
         if !buf.is_empty() {
-            Err(io::Error::new(io::ErrorKind::UnexpectedEof, END_OF_STREAM_ERROR_STR))
-        }
-        else {
+            Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                END_OF_STREAM_ERROR_STR,
+            ))
+        } else {
             Ok(())
         }
     }
@@ -419,7 +403,7 @@ impl ByteStream for MediaSourceStream {
         &mut self,
         _: &[u8],
         _: usize,
-        _: &'a mut [u8]
+        _: &'a mut [u8],
     ) -> io::Result<&'a mut [u8]> {
         // Intentionally left unimplemented.
         unimplemented!();
@@ -442,8 +426,8 @@ impl ByteStream for MediaSourceStream {
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Read, Cursor};
-    use super::{MediaSourceStream, ByteStream};
+    use super::{ByteStream, MediaSourceStream};
+    use std::io::{Cursor, Read};
 
     /// Generate a random vector of bytes of the specified length using a PRNG.
     fn generate_random_bytes(len: usize) -> Box<[u8]> {

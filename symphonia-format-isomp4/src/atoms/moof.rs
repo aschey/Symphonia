@@ -5,7 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use symphonia_core::errors::{Result, decode_error};
+use symphonia_core::errors::{decode_error, Result};
 use symphonia_core::io::ByteStream;
 
 use crate::atoms::{Atom, AtomHeader, AtomIterator, AtomType, MfhdAtom, TrafAtom};
@@ -46,7 +46,7 @@ impl Atom for MoofAtom {
                     let traf = iter.read_atom::<TrafAtom>()?;
                     trafs.push(traf);
                 }
-                _ => ()
+                _ => (),
             }
         }
 

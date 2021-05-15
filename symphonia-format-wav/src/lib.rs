@@ -10,13 +10,13 @@
 
 use std::io::{Seek, SeekFrom};
 
-use symphonia_core::support_format;
 use symphonia_core::codecs::CodecParameters;
-use symphonia_core::errors::{Result, seek_error, unsupported_error, SeekErrorKind};
+use symphonia_core::errors::{seek_error, unsupported_error, Result, SeekErrorKind};
 use symphonia_core::formats::prelude::*;
 use symphonia_core::io::*;
 use symphonia_core::meta::{Metadata, MetadataBuilder, MetadataQueue};
 use symphonia_core::probe::{Descriptor, Instantiate, QueryDescriptor};
+use symphonia_core::support_format;
 
 use log::error;
 
@@ -52,9 +52,9 @@ impl QueryDescriptor for WavReader {
             support_format!(
                 "wave",
                 "Waveform Audio File Format",
-                &[ "wav", "wave" ],
-                &[ "audio/vnd.wave", "audio/x-wav", "audio/wav", "audio/wave" ],
-                &[ b"RIFF" ]
+                &["wav", "wave"],
+                &["audio/vnd.wave", "audio/x-wav", "audio/wav", "audio/wave"],
+                &[b"RIFF"]
             ),
         ]
     }
@@ -65,7 +65,6 @@ impl QueryDescriptor for WavReader {
 }
 
 impl FormatReader for WavReader {
-
     fn try_new(mut source: MediaSourceStream, _options: &FormatOptions) -> Result<Self> {
         // The RIFF marker should be present.
         let marker = source.read_quad_bytes()?;
@@ -82,7 +81,10 @@ impl FormatReader for WavReader {
 
         // The RIFF chunk contains WAVE data.
         if riff_form != WAVE_RIFF_FORM {
-            error!("riff form is not wave ({})", std::str::from_utf8(&riff_form).unwrap());
+            error!(
+                "riff form is not wave ({})",
+                std::str::from_utf8(&riff_form).unwrap()
+            );
 
             return unsupported_error("riff form is not wave");
         }
@@ -113,13 +115,13 @@ impl FormatReader for WavReader {
 
                     // Append Format chunk fields to codec parameters.
                     append_format_params(&mut codec_params, &format);
-                },
+                }
                 RiffWaveChunks::Fact(fct) => {
                     let fact = fct.parse(&mut source)?;
 
                     // Append Fact chunk fields to codec parameters.
                     append_fact_params(&mut codec_params, &fact);
-                },
+                }
                 RiffWaveChunks::List(lst) => {
                     let list = lst.parse(&mut source)?;
 
@@ -127,9 +129,9 @@ impl FormatReader for WavReader {
                     // lists.
                     match &list.form {
                         b"INFO" => metadata.push(read_info_chunk(&mut source, list.len)?),
-                        _       => list.skip(&mut source)?,
+                        _ => list.skip(&mut source)?,
                     }
-                },
+                }
                 RiffWaveChunks::Data(dat) => {
                     let data = dat.parse(&mut source)?;
 
@@ -142,7 +144,7 @@ impl FormatReader for WavReader {
                     // Add a new stream using the collected codec parameters.
                     return Ok(WavReader {
                         reader: source,
-                        streams: vec![ Stream::new(0, codec_params) ],
+                        streams: vec![Stream::new(0, codec_params)],
                         cues: Vec::new(),
                         metadata,
                         frame_len,
@@ -156,7 +158,9 @@ impl FormatReader for WavReader {
     }
 
     fn next_packet(&mut self) -> Result<Packet> {
-        let packet_buf = self.reader.read_boxed_slice(WAVE_MAX_FRAMES_PER_PACKET as usize)?;
+        let packet_buf = self
+            .reader
+            .read_boxed_slice(WAVE_MAX_FRAMES_PER_PACKET as usize)?;
 
         Ok(Packet::new_from_boxed_slice(0, 0, 0, packet_buf))
     }
@@ -174,7 +178,6 @@ impl FormatReader for WavReader {
     }
 
     fn seek(&mut self, to: SeekTo) -> Result<SeekedTo> {
-
         if self.streams.is_empty() || self.frame_len == 0 {
             return seek_error(SeekErrorKind::Unseekable);
         }
@@ -190,8 +193,7 @@ impl FormatReader for WavReader {
                 // known, the seek cannot be completed.
                 if let Some(sample_rate) = params.sample_rate {
                     TimeBase::new(1, sample_rate).calc_timestamp(time)
-                }
-                else {
+                } else {
                     return seek_error(SeekErrorKind::Unseekable);
                 }
             }
@@ -219,15 +221,13 @@ impl FormatReader for WavReader {
             let current_pos = self.reader.pos();
             if seek_pos >= current_pos {
                 self.reader.ignore_bytes(seek_pos - current_pos)?;
-            }
-            else {
-                return seek_error(SeekErrorKind::ForwardOnly)
+            } else {
+                return seek_error(SeekErrorKind::ForwardOnly);
             }
         }
 
         Ok(to)
     }
-
 }
 
 fn read_info_chunk(source: &mut MediaSourceStream, len: u32) -> Result<Metadata> {
@@ -241,8 +241,7 @@ fn read_info_chunk(source: &mut MediaSourceStream, len: u32) -> Result<Metadata>
         if let Some(RiffInfoListChunks::Info(info)) = chunk {
             let parsed_info = info.parse(source)?;
             metadata_builder.add_tag(parsed_info.tag);
-        }
-        else {
+        } else {
             break;
         }
     }
@@ -253,7 +252,6 @@ fn read_info_chunk(source: &mut MediaSourceStream, len: u32) -> Result<Metadata>
 }
 
 fn append_format_params(codec_params: &mut CodecParameters, format: &WaveFormatChunk) {
-
     codec_params
         .with_max_frames_per_packet(WAVE_MAX_FRAMES_PER_PACKET)
         .with_sample_rate(format.sample_rate);
@@ -265,24 +263,24 @@ fn append_format_params(codec_params: &mut CodecParameters, format: &WaveFormatC
                 .with_bits_per_coded_sample(u32::from(pcm.bits_per_sample))
                 .with_bits_per_sample(u32::from(pcm.bits_per_sample))
                 .with_channels(pcm.channels);
-        },
+        }
         WaveFormatData::IeeeFloat(ref ieee) => {
             codec_params
                 .for_codec(ieee.codec)
                 .with_channels(ieee.channels);
-        },
+        }
         WaveFormatData::Extensible(ref ext) => {
             codec_params
                 .for_codec(ext.codec)
                 .with_bits_per_coded_sample(u32::from(ext.bits_per_coded_sample))
                 .with_bits_per_sample(u32::from(ext.bits_per_sample))
                 .with_channels(ext.channels);
-        },
+        }
         WaveFormatData::ALaw(ref alaw) => {
             codec_params
                 .for_codec(alaw.codec)
                 .with_channels(alaw.channels);
-        },
+        }
         WaveFormatData::MuLaw(ref mulaw) => {
             codec_params
                 .for_codec(mulaw.codec)
