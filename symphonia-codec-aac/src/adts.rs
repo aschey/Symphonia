@@ -5,7 +5,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use symphonia_core::support_format;
+use std::io::{Seek, SeekFrom};
+
+use symphonia_core::{
+    errors::{seek_error, SeekErrorKind},
+    support_format,
+};
 
 use symphonia_core::audio::Channels;
 use symphonia_core::codecs::{CodecParameters, CODEC_TYPE_AAC};
@@ -159,7 +164,45 @@ impl FormatReader for AdtsReader {
         &self.streams
     }
 
-    fn seek(&mut self, _to: SeekTo) -> Result<SeekedTo> {
-        unimplemented!();
+    fn into_inner(self: Box<Self>) -> MediaSourceStream {
+        self.reader
+    }
+
+    // Brute force seek attempt. Unsure if this actually works.
+    fn seek(&mut self, to: SeekTo) -> Result<SeekedTo> {
+        let desired_ts = match to {
+            // Frame timestamp given.
+            SeekTo::TimeStamp { ts, .. } => ts,
+            // Time value given, calculate frame timestamp from sample rate.
+            SeekTo::Time { time } => {
+                // Use the sample rate to calculate the frame timestamp. If sample rate is not
+                // known, the seek cannot be completed.
+                if let Some(sample_rate) = self.streams[0].codec_params.sample_rate {
+                    TimeBase::new(1, sample_rate).calc_timestamp(time)
+                } else {
+                    return seek_error(SeekErrorKind::Unseekable);
+                }
+            }
+        };
+        self.reader.seek(SeekFrom::Start(0)).unwrap();
+
+        let actual_ts: u64;
+        let mut accum: u64 = 0;
+        loop {
+            let next = self.next_packet().unwrap();
+            accum += (next.buf().len()
+                * (self.streams[0].codec_params.channels.unwrap().count() + 1))
+                as u64;
+
+            if accum >= desired_ts {
+                actual_ts = accum as u64;
+                break;
+            }
+        }
+
+        Ok(SeekTo::TimeStamp {
+            ts: actual_ts,
+            stream: 0,
+        })
     }
 }

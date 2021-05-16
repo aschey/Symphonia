@@ -126,8 +126,8 @@ mod cpal {
     use symphonia::core::conv::ConvertibleSample;
     use symphonia::core::units::Duration;
 
-    use cpal;
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+    use cpal::{self, BufferSize};
     use rb::*;
 
     use log::error;
@@ -199,6 +199,7 @@ mod cpal {
             let config = cpal::StreamConfig {
                 channels: spec.channels.count() as cpal::ChannelCount,
                 sample_rate: cpal::SampleRate(spec.rate),
+                buffer_size: BufferSize::Default,
             };
 
             // Instantiate a ring buffer capable of buffering 8K (arbitrarily chosen) samples.

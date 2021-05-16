@@ -125,6 +125,10 @@ impl FormatReader for Mp3Reader {
         &self.streams
     }
 
+    fn into_inner(self: Box<Self>) -> MediaSourceStream {
+        self.reader
+    }
+
     fn seek(&mut self, to: SeekTo) -> Result<SeekedTo> {
         // Get the timestamp of the desired audio frame.
         let desired_ts = match to {

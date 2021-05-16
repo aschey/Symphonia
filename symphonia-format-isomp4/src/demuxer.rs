@@ -5,7 +5,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-use symphonia_core::{errors::end_of_stream_error, support_format};
+use symphonia_core::{
+    errors::{end_of_stream_error, seek_error, SeekErrorKind},
+    support_format,
+};
 
 use symphonia_core::codecs::{CodecParameters, CODEC_TYPE_AAC};
 use symphonia_core::errors::{decode_error, unsupported_error, Result};
@@ -473,7 +476,55 @@ impl FormatReader for IsoMp4Reader {
         &self.streams
     }
 
-    fn seek(&mut self, _to: SeekTo) -> Result<SeekedTo> {
-        unsupported_error("seeking unsupported")
+    fn into_inner(self: Box<Self>) -> MediaSourceStream {
+        self.iter.into_inner()
+    }
+
+    // Brute force seek attempt. This can cause issues when decoding the next sample sometimes so the next sample will need to be skipped in that case
+    fn seek(&mut self, to: SeekTo) -> Result<SeekedTo> {
+        let desired_ts = match to {
+            // Frame timestamp given.
+            SeekTo::TimeStamp { ts, .. } => ts,
+            // Time value given, calculate frame timestamp from sample rate.
+            SeekTo::Time { time } => {
+                // Use the sample rate to calculate the frame timestamp. If sample rate is not
+                // known, the seek cannot be completed.
+                if let Some(sample_rate) = self.streams[0].codec_params.sample_rate {
+                    TimeBase::new(1, sample_rate).calc_timestamp(time)
+                } else {
+                    return seek_error(SeekErrorKind::Unseekable);
+                }
+            }
+        };
+        let next_sample_info = loop {
+            // Using the current set of segments, try to get the next sample info.
+            if let Some(info) = self.next_sample_info()? {
+                break info;
+            } else {
+                // No more segments. If the stream is unseekable, it may be the case that there are
+                // more segments coming. Iterate atoms until a new segment is found or the
+                // end-of-stream is reached.
+                self.try_read_more_segments()?;
+            }
+        };
+        if next_sample_info.ts >= desired_ts {
+            let mut track = &mut self.tracks[0];
+            track.next_sample = 0;
+            track.next_sample_pos = 0;
+        }
+        let actual_ts: u64;
+        loop {
+            let next = self.next_packet().unwrap();
+            let pts = next.pts();
+            if pts >= desired_ts {
+                actual_ts = pts;
+                break;
+            }
+        }
+
+        Ok(SeekTo::TimeStamp {
+            ts: actual_ts,
+            stream: 0,
+        })
     }
 }

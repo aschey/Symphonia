@@ -177,6 +177,10 @@ impl FormatReader for WavReader {
         &self.streams
     }
 
+    fn into_inner(self: Box<Self>) -> MediaSourceStream {
+        self.reader
+    }
+
     fn seek(&mut self, to: SeekTo) -> Result<SeekedTo> {
         if self.streams.is_empty() || self.frame_len == 0 {
             return seek_error(SeekErrorKind::Unseekable);

@@ -108,6 +108,10 @@ impl FormatReader for FlacReader {
         &self.streams
     }
 
+    fn into_inner(self: Box<Self>) -> MediaSourceStream {
+        self.reader
+    }
+
     fn seek(&mut self, to: SeekTo) -> Result<SeekedTo> {
         if self.streams.is_empty() {
             return seek_error(SeekErrorKind::Unseekable);
