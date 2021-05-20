@@ -36,7 +36,7 @@ const VORBIS_BLOCKSIZE_MIN: u8 = 6;
 /// The maximum block size (8192) expressed as a power-of-2 exponent.
 const VORBIS_BLOCKSIZE_MAX: u8 = 13;
 
-pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper>>> {
+pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper + Send>>> {
     // The identification header packet must be the correct size.
     if buf.len() != VORBIS_IDENTIFICATION_HEADER_SIZE {
         return Ok(None);

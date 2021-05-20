@@ -91,7 +91,7 @@ mod bloom {
 #[derive(Copy, Clone)]
 pub enum Instantiate {
     /// Instantiation function for a `FormatReader`.
-    Format(fn(MediaSourceStream, &FormatOptions) -> Result<Box<dyn FormatReader>>),
+    Format(fn(MediaSourceStream, &FormatOptions) -> Result<Box<dyn FormatReader + Send>>),
     /// Instantiation function for a `MetadataReader`.
     Metadata(fn(&MetadataOptions) -> Box<dyn MetadataReader>),
 }
@@ -164,7 +164,7 @@ impl Hint {
 /// `ProbeResult` contains the result of a format probe operation.
 pub struct ProbeResult {
     /// An instance of a `FormatReader` for the probed format
-    pub format: Box<dyn FormatReader>,
+    pub format: Box<dyn FormatReader + Send>,
     /// A queue of `Metadata` revisions read during the probe operation before the instantiation of
     /// the `FormatReader`.
     pub metadata: MetadataQueue,

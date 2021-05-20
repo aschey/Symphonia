@@ -28,7 +28,7 @@ pub struct OggReader {
     cues: Vec<Cue>,
     metadata: MetadataQueue,
     physical_stream: PhysicalStream,
-    mappers: BTreeMap<u32, Box<dyn mappings::Mapper>>,
+    mappers: BTreeMap<u32, Box<dyn mappings::Mapper + Send>>,
 }
 
 impl QueryDescriptor for OggReader {
@@ -52,7 +52,7 @@ impl FormatReader for OggReader {
         let mut physical_stream: PhysicalStream = Default::default();
 
         let mut streams = Vec::new();
-        let mut mappers = BTreeMap::<u32, Box<dyn mappings::Mapper>>::new();
+        let mut mappers = BTreeMap::<u32, Box<dyn mappings::Mapper + Send>>::new();
 
         // The first page of each logical stream, marked with the first page flag, must contain the
         // identification packet for the encapsulated codec bitstream. The first page for each

@@ -18,8 +18,10 @@ use symphonia_core::meta::MetadataQueue;
 use symphonia_core::probe::{Descriptor, Instantiate, QueryDescriptor};
 use symphonia_core::units::Time;
 
-use std::io::{Seek, SeekFrom};
-use std::rc::Rc;
+use std::{
+    io::{Seek, SeekFrom},
+    sync::Arc,
+};
 
 use crate::atoms::stsd::SampleDescription;
 use crate::atoms::{AtomIterator, AtomType};
@@ -110,11 +112,11 @@ pub struct IsoMp4Reader {
     cues: Vec<Cue>,
     metadata: MetadataQueue,
     /// Segments of the movie. Sorted in ascending order by sequence number.
-    segs: Vec<Box<dyn StreamSegment>>,
+    segs: Vec<Box<dyn StreamSegment + Send>>,
     /// State tracker for each track.
     tracks: Vec<TrackState>,
     /// Optional, movie extends atom used for fragmented streams.
-    mvex: Option<Rc<MvexAtom>>,
+    mvex: Option<Arc<MvexAtom>>,
 }
 
 impl IsoMp4Reader {
@@ -405,9 +407,9 @@ impl FormatReader for IsoMp4Reader {
 
         // A Movie Extends (mvex) atom is required to support segmented streams. If the mvex atom is
         // present, wrap it in an Rc so it can be shared amongst all segments.
-        let mvex = moov.mvex.take().map(|m| Rc::new(m));
+        let mvex = moov.mvex.take().map(|m| Arc::new(m));
 
-        let segs: Vec<Box<dyn StreamSegment>> = vec![Box::new(MoovSegment::new(moov))];
+        let segs: Vec<Box<dyn StreamSegment + Send>> = vec![Box::new(MoovSegment::new(moov))];
 
         Ok(IsoMp4Reader {
             iter,

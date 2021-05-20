@@ -8,7 +8,7 @@ use symphonia_core::errors::{decode_error, Error, Result};
 
 use crate::atoms::{stsz::SampleSize, Co64Atom, MoofAtom, MoovAtom, MvexAtom, StcoAtom};
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct SampleDataDesc {
     pub base_pos: u64,
@@ -45,13 +45,17 @@ struct SequenceInfo {
 
 pub struct MoofSegment {
     moof: MoofAtom,
-    mvex: Rc<MvexAtom>,
+    mvex: Arc<MvexAtom>,
     seq: Vec<SequenceInfo>,
 }
 
 impl MoofSegment {
     /// Instantiate a new segment from a `MoofAtom`.
-    pub fn new(moof: MoofAtom, mvex: Rc<MvexAtom>, last: &Box<dyn StreamSegment>) -> MoofSegment {
+    pub fn new(
+        moof: MoofAtom,
+        mvex: Arc<MvexAtom>,
+        last: &Box<dyn StreamSegment + Send>,
+    ) -> MoofSegment {
         let mut seq = Vec::new();
 
         // Calculate the sequence information for each track of this segment.

@@ -30,7 +30,7 @@ const OGG_FLAC_PACKET_TYPE: u8 = 0x7f;
 /// The native FLAC signature.
 const FLAC_SIGNATURE: &[u8] = b"fLaC";
 
-pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper>>> {
+pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper + Send>>> {
     // The packet shall be exactly the expected length.
     if buf.len() != OGG_FLAC_HEADER_PACKET_SIZE {
         return Ok(None);

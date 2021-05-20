@@ -14,7 +14,7 @@ mod opus;
 mod vorbis;
 
 /// Detect `CodecParameters` for a stream that is coded using a supported codec.
-pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper>>> {
+pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper + Send>>> {
     let mapper = flac::detect(buf)?
         .or(vorbis::detect(buf)?)
         .or(opus::detect(buf)?)
@@ -35,7 +35,7 @@ pub trait Mapper {
     fn map_packet(&mut self, buf: &[u8]) -> Result<MapResult>;
 }
 
-fn make_null_mapper() -> Option<Box<dyn Mapper>> {
+fn make_null_mapper() -> Option<Box<dyn Mapper + Send>> {
     Some(Box::new(NullMapper::new()))
 }
 

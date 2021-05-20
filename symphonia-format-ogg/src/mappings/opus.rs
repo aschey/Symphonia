@@ -27,7 +27,7 @@ const OGG_OPUS_COMMENT_SIGNATURE: &[u8] = b"OpusTags";
 /// The maximum support Opus OGG mapping version.
 const OGG_OPUS_MAPPING_VERSION_MAX: u8 = 0x0f;
 
-pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper>>> {
+pub fn detect(buf: &[u8]) -> Result<Option<Box<dyn Mapper + Send>>> {
     // The identification packet for Opus must be a minimum size.
     if buf.len() < OGG_OPUS_MIN_IDENTIFICATION_PACKET_SIZE {
         return Ok(None);

@@ -348,7 +348,7 @@ pub struct CodecDescriptor {
     /// A longer, more descriptive, string identifying the codec.
     pub long_name: &'static str,
     // An instantiation function for the codec.
-    pub inst_func: fn(&CodecParameters, &DecoderOptions) -> Result<Box<dyn Decoder>>,
+    pub inst_func: fn(&CodecParameters, &DecoderOptions) -> Result<Box<dyn Decoder + Send>>,
 }
 
 /// A `CodecRegistry` allows the registration of codecs, and provides a method to instantiate a
@@ -392,7 +392,7 @@ impl CodecRegistry {
         &self,
         params: &CodecParameters,
         options: &DecoderOptions,
-    ) -> Result<Box<dyn Decoder>> {
+    ) -> Result<Box<dyn Decoder + Send>> {
         if let Some(descriptor) = self.codecs.get(&params.codec) {
             Ok((descriptor.inst_func)(params, options)?)
         } else {
