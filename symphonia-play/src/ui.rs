@@ -7,7 +7,6 @@
 
 use std::borrow::Cow;
 use std::io::Write;
-use std::path::Path;
 
 use lazy_static::lazy_static;
 use symphonia::core::codecs::{CodecInfo, CodecParameters, CodecProfile};
@@ -24,8 +23,8 @@ const MIN_PAD: usize = 20;
 /// The maximum padding for tag keys.
 const MAX_PAD: usize = 40;
 
-pub fn print_format(path: &Path, format: &mut Box<dyn FormatReader>) {
-    println!("+ {}", path.display());
+pub fn print_format(path: &str, format: &mut Box<dyn FormatReader>) {
+    println!("+ {}", path);
 
     let format_info = format.format_info();
 

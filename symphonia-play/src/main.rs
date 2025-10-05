@@ -15,14 +15,18 @@
 use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::Write;
-use std::path::Path;
 
+use stream_download::http::reqwest::Client;
+use stream_download::http::HttpStream;
+use stream_download::source::SourceStream;
+use stream_download::storage::memory::MemoryStorageProvider;
+use stream_download::{Settings, StreamDownload};
 use symphonia::core::codecs::audio::{AudioDecoderOptions, FinalizeResult};
 use symphonia::core::codecs::CodecParameters;
 use symphonia::core::errors::{Error, Result};
 use symphonia::core::formats::probe::Hint;
 use symphonia::core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo, TrackType};
-use symphonia::core::io::{MediaSource, MediaSourceStream, ReadOnlySource};
+use symphonia::core::io::{MediaSourceStream, ReadOnlySource};
 use symphonia::core::meta::{MetadataOptions, Visual};
 use symphonia::core::units::Time;
 
@@ -133,27 +137,27 @@ fn main() {
 }
 
 fn run(args: &ArgMatches) -> Result<i32> {
-    let path = Path::new(args.value_of("INPUT").unwrap());
+    let url = args.value_of("INPUT").unwrap();
 
     // Create a hint to help the format registry guess what format reader is appropriate.
-    let mut hint = Hint::new();
+    let hint = Hint::new();
 
-    // If the path string is '-' then read from standard input.
-    let source = if path.as_os_str() == "-" {
-        Box::new(ReadOnlySource::new(std::io::stdin())) as Box<dyn MediaSource>
-    }
-    else {
-        // Othwerise, get a Path from the path string.
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let _guard = rt.enter();
+    let stream = rt.block_on(async move {
+        let http_stream = HttpStream::<Client>::create(url.parse().unwrap()).await.unwrap();
 
-        // Provide the file extension as a hint.
-        if let Some(extension) = path.extension() {
-            if let Some(extension_str) = extension.to_str() {
-                hint.with_extension(extension_str);
-            }
-        }
+        let stream = StreamDownload::from_stream(
+            http_stream,
+            MemoryStorageProvider,
+            Settings::default().prefetch_bytes(1024),
+        )
+        .await
+        .unwrap();
+        stream
+    });
 
-        Box::new(File::open(path)?)
-    };
+    let source = Box::new(ReadOnlySource::new(stream));
 
     // Create the media source stream using the boxed media source from above.
     let mss = MediaSourceStream::new(source, Default::default());
@@ -170,12 +174,7 @@ fn run(args: &ArgMatches) -> Result<i32> {
         Ok(mut format) => {
             // Dump visuals if requested.
             if args.is_present("dump-visuals") {
-                let name = match path.file_name() {
-                    Some(name) if name != "-" => name,
-                    _ => OsStr::new("NoName"),
-                };
-
-                dump_visuals(&mut format, name);
+                dump_visuals(&mut format, &OsString::from(url));
             }
 
             // Get the value of the track number option, if provided.
@@ -184,7 +183,7 @@ fn run(args: &ArgMatches) -> Result<i32> {
             // Select the operating mode.
             if args.is_present("probe-only") {
                 // Probe-only mode only prints information about the format, tracks, metadata, etc.
-                ui::print_format(path, &mut format);
+                ui::print_format(url, &mut format);
                 Ok(0)
             }
             else if args.is_present("verify-only") {
@@ -207,7 +206,7 @@ fn run(args: &ArgMatches) -> Result<i32> {
             }
             else {
                 // Playback mode.
-                ui::print_format(path, &mut format);
+                ui::print_format(url, &mut format);
 
                 // If present, parse the seek argument.
                 let seek_pos = if let Some(time) = args.value_of("seek") {
