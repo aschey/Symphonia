@@ -17,7 +17,7 @@ use log::debug;
 
 pub fn probe_stream_start(
     reader: &mut MediaSourceStream<'_>,
-    pages: &mut PageReader,
+    mut pages: PageReader,
     streams: &mut BTreeMap<u32, LogicalStream>,
 ) {
     // Save the original position to jump back to.
@@ -67,7 +67,7 @@ pub fn probe_stream_start(
 
 pub fn probe_stream_end(
     reader: &mut MediaSourceStream<'_>,
-    pages: &mut PageReader,
+    mut pages: PageReader,
     streams: &mut BTreeMap<u32, LogicalStream>,
     byte_range_start: u64,
     byte_range_end: u64,
@@ -90,7 +90,7 @@ pub fn probe_stream_end(
 
     pages.next_page(reader)?;
 
-    let result = scan_stream_end(reader, pages, streams, byte_range_end);
+    let result = scan_stream_end(reader, &mut pages, streams, byte_range_end);
 
     // If there are no pages belonging to the current physical stream at the end of the media
     // source stream, then one or more physical streams are chained. Use a bisection method to find
@@ -129,7 +129,7 @@ pub fn probe_stream_end(
 
         pages.next_page(reader)?;
 
-        scan_stream_end(reader, pages, streams, end)
+        scan_stream_end(reader, &mut pages, streams, end)
     }
     else {
         result

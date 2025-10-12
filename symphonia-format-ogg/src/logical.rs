@@ -182,6 +182,7 @@ impl LogicalStream {
         let num_new_packets = self.packets.len() - num_prev_packets;
 
         if num_new_packets > 0 {
+            self.inspect_start_page(page);
             // Get the start delay.
             let start_delay = self.start_bound.as_ref().map_or(0, |b| b.delay);
 
@@ -207,10 +208,20 @@ impl LogicalStream {
             }
 
             if self.gapless {
-                for packet in self.packets.iter_mut().rev().take(num_new_packets) {
+                let initial_start_delay = if num_prev_packets == 0 {
+                    start_delay + self.mapper.pre_skip()
+                }
+                else {
+                    start_delay
+                };
+
+                for (i, packet) in self.packets.iter_mut().rev().take(num_new_packets).enumerate() {
+                    let delay =
+                        if i == num_new_packets - 1 { initial_start_delay } else { start_delay };
+
                     symphonia_core::formats::util::trim_packet(
                         packet,
-                        start_delay as u32,
+                        delay as u32,
                         self.end_bound.as_ref().map(|b| b.ts),
                     );
                 }

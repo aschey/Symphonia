@@ -146,6 +146,7 @@ impl Page<'_> {
 }
 
 /// A reader of OGG pages.
+#[derive(Clone)]
 pub struct PageReader {
     header: PageHeader,
     packet_lens: Vec<u16>,

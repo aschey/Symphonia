@@ -144,10 +144,10 @@ pub fn detect(serial: u32, buf: &[u8]) -> Result<Option<Box<dyn Mapper>>> {
     // Create the track.
     let mut track = Track::new(serial);
 
-    track.with_codec_params(CodecParameters::Audio(codec_params)).with_delay(u32::from(pre_skip));
+    track.with_codec_params(CodecParameters::Audio(codec_params));
 
     // Instantiate the Opus mapper.
-    let mapper = Box::new(OpusMapper { track, need_comment: true });
+    let mapper = Box::new(OpusMapper { track, pre_skip: pre_skip as u64, need_comment: true });
 
     Ok(Some(mapper))
 }
@@ -218,6 +218,7 @@ impl PacketParser for OpusPacketParser {
 struct OpusMapper {
     track: Track,
     need_comment: bool,
+    pre_skip: u64,
 }
 
 impl Mapper for OpusMapper {
@@ -235,6 +236,10 @@ impl Mapper for OpusMapper {
 
     fn track_mut(&mut self) -> &mut Track {
         &mut self.track
+    }
+
+    fn pre_skip(&self) -> u64 {
+        self.pre_skip
     }
 
     fn make_parser(&self) -> Option<Box<dyn super::PacketParser>> {

@@ -63,6 +63,12 @@ pub trait Mapper: Send + Sync {
         ts
     }
 
+    /// Number of frames to skip at the beginning of the stream.
+    /// Only applicable for Opus.
+    fn pre_skip(&self) -> u64 {
+        0
+    }
+
     /// Make a packet parser for parsing packet timing.
     fn make_parser(&self) -> Option<Box<dyn PacketParser>>;
 

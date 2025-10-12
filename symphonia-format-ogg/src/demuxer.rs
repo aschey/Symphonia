@@ -365,7 +365,7 @@ impl<'s> OggReader<'s> {
         }
 
         // Probe the logical streams for their start and end pages.
-        physical::probe_stream_start(&mut self.reader, &mut self.pages, &mut streams);
+        physical::probe_stream_start(&mut self.reader, self.pages.clone(), &mut streams);
 
         let mut byte_range_end = Default::default();
 
@@ -375,7 +375,7 @@ impl<'s> OggReader<'s> {
             if let Some(total_len) = self.reader.byte_len() {
                 byte_range_end = physical::probe_stream_end(
                     &mut self.reader,
-                    &mut self.pages,
+                    self.pages.clone(),
                     &mut streams,
                     byte_range_start,
                     total_len,
